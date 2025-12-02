@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
-// Importamos estilos de Amplify
 import "@aws-amplify/ui-react/styles.css";
-// Importamos la configuración
 import ConfigureAmplifyClientSide from "@/components/ConfigureAmplify";
+import AuthenticatorWrapper from "@/components/AuthenticatorWrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,7 +22,7 @@ export default function RootLayout({
     <html lang="es">
       <body className={inter.className}>
         <ConfigureAmplifyClientSide />
-        {children}
+        <AuthenticatorWrapper>{children}</AuthenticatorWrapper>
       </body>
     </html>
   );
