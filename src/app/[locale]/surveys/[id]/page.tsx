@@ -42,7 +42,8 @@ export default function SurveyEditorPage() {
     loading: optionsLoading,
     addOption,
     deleteOption,
-  } = useQuestionOptions(selectedQuestion?.id || null);
+    updateOption,
+  } = useQuestionOptions(selectedQuestion?.id || null, selectedQuestion?.type, true);
   const { required, toggleRequired } = useQuestionInspector(selectedQuestion);
 
   const userName =
@@ -121,6 +122,7 @@ export default function SurveyEditorPage() {
               onChangeText={handleUpdateQuestionText}
               onAddOption={addOption}
               onDeleteOption={deleteOption}
+              onUpdateOption={updateOption}
               onDeleteQuestion={deleteQuestion}
             />
             <InspectorPanel

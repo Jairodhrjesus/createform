@@ -35,13 +35,11 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
-      <body className={inter.className}>
-        <NextIntlClientProvider messages={messages}>
-          <AmplifyConfigurator />
-          <AmplifyAuthProvider>{children}</AmplifyAuthProvider>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <div className={inter.className} data-locale={locale}>
+      <NextIntlClientProvider messages={messages}>
+        <AmplifyConfigurator />
+        <AmplifyAuthProvider>{children}</AmplifyAuthProvider>
+      </NextIntlClientProvider>
+    </div>
   );
 }

@@ -10,7 +10,7 @@ import EmailGate from "@/components/EmailGate";
 // Definicion de tipos para la respuesta que se guarda en el estado local
 interface AnswerData {
   questionId: string;
-  optionId: string;
+  optionIds: string[];
   score: number;
 }
 
@@ -88,13 +88,15 @@ export default function PublicSurveyView() {
   }, [questions, currentStep]);
 
   // 2. Manejar la seleccion de respuestas
-  const handleAnswer = (questionId: string, option: Schema["Option"]["type"]) => {
+  const handleAnswer = (questionId: string, opts: Schema["Option"]["type"][] | null) => {
+    const optionIds = opts?.map((o) => o.id as string) || [];
+    const score = opts?.reduce((acc, o) => acc + (o.score || 0), 0) || 0;
     setAnswers((prev) => ({
       ...prev,
       [questionId]: {
-        questionId: questionId,
-        optionId: option.id,
-        score: option.score || 0,
+        questionId,
+        optionIds,
+        score,
       },
     }));
     setLeadError(null);
@@ -296,7 +298,7 @@ export default function PublicSurveyView() {
               key={questions[currentStep].id}
               question={questions[currentStep]}
               onAnswer={handleAnswer}
-              selectedOptionId={answers[questions[currentStep].id]?.optionId || null}
+              selectedOptionIds={answers[questions[currentStep].id]?.optionIds || []}
               displayOrder={(questions[currentStep].order || currentStep) + 1}
             />
           )}

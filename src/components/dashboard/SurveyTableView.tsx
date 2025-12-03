@@ -3,8 +3,10 @@ import { useTranslations } from "next-intl";
 import { SurveyActionsMenu } from "./SurveyActionsMenu";
 import type { SurveyListItem } from "./hooks/useSurveys";
 
+import type { Schema } from "@/amplify/data/resource";
+
 type SurveyType = SurveyListItem;
-type WorkspaceType = { id?: string | null; name?: string | null; isDefault?: boolean | null };
+type WorkspaceType = Schema["Workspace"]["type"];
 
 type Props = {
   surveys: SurveyType[];
@@ -84,8 +86,8 @@ export function SurveyTableView({
                 </div>
               </td>
 
-              <td className="px-3 py-2 text-xs text-slate-500">
-                {t("responsesPlaceholder")}
+              <td className="px-3 py-2 text-center text-sm font-semibold text-slate-700">
+                {survey.submissionCount ?? 0}
               </td>
 
               <td className="px-3 py-2 text-xs">
@@ -110,6 +112,12 @@ export function SurveyTableView({
                     className="rounded-full border border-slate-200 px-3 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
                   >
                     {t("actions.edit")}
+                  </Link>
+                  <Link
+                    href={`/${locale}/submissions/${survey.id}`}
+                    className="rounded-full border border-slate-200 px-3 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    {t("actions.viewResults")}
                   </Link>
                   <button
                     type="button"

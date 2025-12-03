@@ -76,6 +76,12 @@ export function SurveyActionsMenu({
       >
         {t("actions.edit")}
       </Link>
+      <Link
+        href={`/${locale}/submissions/${surveyId}`}
+        className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+      >
+        {t("actions.viewResults")}
+      </Link>
       <div className="border-t border-slate-100">
         <p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
           {t("actions.moveTo")}

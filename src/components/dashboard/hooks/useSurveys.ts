@@ -11,6 +11,7 @@ export type SurveyListItem = {
   updatedAt?: string | null;
   createdAt?: string | null;
   _lastChangedAt?: number | null;
+  submissionCount?: number;
 };
 
 type Params = {
@@ -23,9 +24,10 @@ type Params = {
 // Maneja suscripción a encuestas y derivaciones (filtros, conteos).
 export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortKey }: Params) {
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
+  const [submissions, setSubmissions] = useState<{ surveyId: string }[]>([]);
 
   useEffect(() => {
-    const subscription = (client.models.Survey as any).observeQuery({
+    const surveySub = (client.models.Survey as any).observeQuery({
       selectionSet: [
         "id",
         "title",
@@ -38,8 +40,36 @@ export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortK
     }).subscribe({
       next: ({ items }: any) => setSurveys(items as SurveyListItem[]),
     });
-    return () => subscription.unsubscribe();
+
+    const submissionSub = client.models.Submission.observeQuery({
+      selectionSet: ["surveyId"],
+      authMode: "apiKey",
+    }).subscribe({
+      next: ({ items }) => setSubmissions(items as { surveyId: string }[]),
+    });
+
+    return () => {
+      surveySub.unsubscribe();
+      submissionSub.unsubscribe();
+    };
   }, []);
+
+  const submissionCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const sub of submissions) {
+      if (sub.surveyId) {
+        counts[sub.surveyId] = (counts[sub.surveyId] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [submissions]);
+
+  const surveysWithCounts = useMemo(() => {
+    return surveys.map(s => ({
+      ...s,
+      submissionCount: submissionCounts[s.id] || 0,
+    }));
+  }, [surveys, submissionCounts]);
 
   const workspaceSurveyCounts = useMemo(() => {
     if (!hasWorkspaceModel) return {};
@@ -57,12 +87,12 @@ export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortK
     const getUpdatedValue = (s: SurveyListItem) => s.updatedAt || s.createdAt || null;
 
     const byWorkspace = hasWorkspaceModel
-      ? surveys.filter((s) => {
+      ? surveysWithCounts.filter((s) => {
           if (activeWorkspaceId === "all") return true;
           if (activeWorkspaceId === "unassigned") return !s.workspaceId;
           return s.workspaceId === activeWorkspaceId;
         })
-      : surveys;
+      : surveysWithCounts;
 
     const bySearch = !search.trim()
       ? byWorkspace
@@ -80,7 +110,7 @@ export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortK
     });
 
     return sorted;
-  }, [surveys, search, activeWorkspaceId, hasWorkspaceModel, sortKey]);
+  }, [surveysWithCounts, search, activeWorkspaceId, hasWorkspaceModel, sortKey]);
 
   const updateSurveyLocally = useCallback(
     (id: string, patch: Partial<SurveyListItem>) => {
@@ -92,7 +122,7 @@ export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortK
   );
 
   return {
-    surveys,
+    surveys: surveysWithCounts,
     filteredSurveys,
     workspaceSurveyCounts,
     hasUnassigned,

@@ -3,8 +3,10 @@ import { useTranslations } from "next-intl";
 import { SurveyActionsMenu } from "./SurveyActionsMenu";
 import type { SurveyListItem } from "./hooks/useSurveys";
 
+import type { Schema } from "@/amplify/data/resource";
+
 type SurveyType = SurveyListItem;
-type WorkspaceType = { id?: string | null; name?: string | null; isDefault?: boolean | null };
+type WorkspaceType = Schema["Workspace"]["type"];
 
 type Props = {
   surveys: SurveyType[];
@@ -87,7 +89,7 @@ export function SurveyGridView({
                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
                 {survey.isActive ? t("status.active") : t("status.draft")}
               </span>
-              <span className="text-[11px]">{t("responsesPlaceholder")}</span>
+              <span className="text-[11px] font-semibold">{survey.submissionCount ?? 0} respuestas</span>
               <span className="text-[11px]">
                 {t("card.updated", { date: formatUpdatedAt(getUpdatedValue(survey)) })}
               </span>
@@ -100,12 +102,20 @@ export function SurveyGridView({
               >
                 {t("actions.share")}
               </button>
-              <Link
-                href={`/${locale}/surveys/${survey.id}`}
-                className="text-[11px] font-medium text-slate-700 hover:underline"
-              >
-                {t("card.open")}
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/${locale}/submissions/${survey.id}`}
+                  className="text-[11px] font-medium text-slate-700 hover:underline"
+                >
+                  {t("actions.viewResults")}
+                </Link>
+                <Link
+                  href={`/${locale}/surveys/${survey.id}`}
+                  className="text-[11px] font-medium text-slate-700 hover:underline"
+                >
+                  {t("card.open")}
+                </Link>
+              </div>
             </div>
 
             <SurveyActionsMenu

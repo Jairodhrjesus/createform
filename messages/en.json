@@ -124,6 +124,7 @@
       "publish": "Publish",
       "duplicate": "Duplicate",
       "edit": "Edit",
+      "viewResults": "View Results",
       "moveTo": "Move to",
       "delete": "Delete",
       "confirmDelete": "Delete this form?",

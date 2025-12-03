@@ -1,4 +1,5 @@
-import type { ReactNode, Metadata } from "next";
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: "CreateForm App",
@@ -6,6 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  // Layout mínimo: no renderiza html/body, deja que [locale]/layout.tsx lo haga.
-  return <>{children}</>;
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>{children}</body>
+    </html>
+  );
 }
