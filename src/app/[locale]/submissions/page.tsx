@@ -6,10 +6,12 @@ import { useAuthenticator } from "@aws-amplify/ui-react";
 import AuthGuard from "@/components/AuthGuard";
 import { client } from "@/utils/amplify-utils";
 import type { Schema } from "@/amplify/data/resource";
+import { useLocale } from "next-intl";
 
 type SubmissionType = Schema["Submission"]["type"];
 
 export default function SubmissionsPage() {
+  const locale = useLocale();
   const { authStatus, user, signOut } = useAuthenticator();
 
   const [submissions, setSubmissions] = useState<SubmissionType[]>([]);
@@ -54,9 +56,9 @@ export default function SubmissionsPage() {
       <div className="min-h-screen bg-gray-100 text-black">
         <nav className="bg-white shadow-sm px-6 py-4">
           <div className="max-w-6xl mx-auto flex justify-between items-center">
-            <h1 className="text-xl font-bold tracking-tight text-blue-600">
-              <Link href="/">Dashboard de Encuestas</Link>
-            </h1>
+              <h1 className="text-xl font-bold tracking-tight text-blue-600">
+                <Link href={`/${locale}`}>Dashboard de Encuestas</Link>
+              </h1>
             <div className="flex items-center gap-4">
               <p className="text-sm text-gray-500">Admin: {user?.username}</p>
               <button

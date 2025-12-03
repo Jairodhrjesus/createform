@@ -1,0 +1,73 @@
+{
+  "Navbar": {
+    "brand": "CreateForm",
+    "results": "Results",
+    "settings": "Profile",
+    "logout": "Sign out",
+    "account": "Account"
+  },  
+  "AuthFlow": {
+    "signInErrorNotAuthorized": "Incorrect email or password.",
+    "signInErrorUserNotFound": "User not found.",
+    "signInErrorUserNotConfirmed": "We sent you a confirmation code.",
+    "signInErrorGeneric": "Could not sign in.",
+    "confirmCodeSent": "We sent a code to {email}.",
+    "accountCreated": "Account created. You can sign in now.",
+    "signUpErrorExists": "User already exists.",
+    "signUpErrorWeak": "Password does not meet requirements.",
+    "signUpErrorGeneric": "Could not create account.",
+    "confirmTitle": "Confirm your account",
+    "confirmSubtitle": "Enter the 6-digit code sent to {email}",
+    "confirmLabel": "Confirmation code",
+    "confirmSubmitting": "Confirming...",
+    "confirmSubmit": "Confirm",
+    "confirmBack": "Back to login",
+    "codeInvalid": "Invalid code.",
+    "resetSendFailed": "Could not send reset code.",
+    "codeFormatInvalid": "The code must be 6 digits.",
+    "resetSuccess": "Password updated.",
+    "resetFailed": "Could not reset password."
+  },
+  "LoginForm": {
+    "title": "Welcome back",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "loading": "Signing in...",
+    "forgot": "Forgot password?",
+    "switchPrompt": "Don't have an account?",
+    "switchCta": "Sign up",
+    "placeholderEmail": "you@example.com",
+    "placeholderPassword": "Your password"
+  },
+  "SignUpForm": {
+    "title": "Create your account",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "nameLabel": "Preferred username",
+    "placeholderName": "Your display name",
+    "submit": "Create account",
+    "loading": "Creating...",
+    "switchPrompt": "Already have an account?",
+    "switchCta": "Sign in",
+    "placeholderEmail": "you@example.com",
+    "placeholderPassword": "At least 8 characters, 1 number, 1 symbol",
+    "passwordHint": "At least 8 characters, 1 number, 1 symbol"
+  },
+  "ForgotPasswordForm": {
+    "titleRequest": "Reset your password",
+    "titleVerify": "Check your email",
+    "titleReset": "Enter new password",
+    "emailLabel": "Email",
+    "codeLabel": "Code",
+    "newPasswordLabel": "New password",
+    "submitEmail": "Send code",
+    "submitCode": "Continue",
+    "submitPassword": "Change password",
+    "loading": "Please wait...",
+    "placeholderEmail": "you@example.com",
+    "placeholderCode": "123456",
+    "placeholderPassword": "New password",
+    "back": "Back to login"
+  }
+}

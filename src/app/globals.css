@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global reset and background */
+body {
+  @apply bg-gray-100 text-black;
+}
+
+.progress-bar {
+  width: 50%;
+  height: 10px;
+  border-radius: 9999px;
+  background-color: #e5e7eb;
+  overflow: hidden;
+}
+
+.progress-bar::-webkit-progress-bar {
+  background-color: #e5e7eb;
+}
+
+.progress-bar::-webkit-progress-value {
+  background-color: #2563eb;
+  border-radius: 9999px;
+}
+
+.progress-bar::-moz-progress-bar {
+  background-color: #2563eb;
+  border-radius: 9999px;
+}

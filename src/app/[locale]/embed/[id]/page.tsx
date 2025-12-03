@@ -24,7 +24,7 @@ const generateRespondentId = () => {
 
 export default function PublicSurveyView() {
   const params = useParams();
-  const surveyId = params.id as string;
+  const surveyId = (params?.id as string) || "";
 
   const [survey, setSurvey] = useState<Schema["Survey"]["type"] | null>(null);
   const [questions, setQuestions] = useState<Schema["Question"]["type"][]>([]);
@@ -175,9 +175,11 @@ export default function PublicSurveyView() {
           {/* Indicador de progreso */}
           <div className="text-sm text-gray-600 mb-4 flex justify-between">
             <span>Progreso: {totalAnswered} / {totalQuestions}</span>
-            <div className="w-1/2 bg-gray-200 rounded-full h-2.5 mt-1">
-                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${(totalAnswered / totalQuestions) * 100}%` }}></div>
-            </div>
+            <progress
+              className="progress-bar mt-1"
+              max={totalQuestions || 1}
+              value={totalAnswered}
+            />
           </div>
           
           {questions.map((q, index) => (

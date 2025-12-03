@@ -6,6 +6,7 @@ import Link from "next/link";
 import { client } from "@/utils/amplify-utils";
 import type { Schema } from "@/amplify/data/resource";
 import OutcomeManager from "@/components/OutcomeManager";
+import { useLocale } from "next-intl";
 
 type QuestionType = Schema["Question"]["type"];
 type OptionType = Schema["Option"]["type"];
@@ -23,7 +24,7 @@ const OptionManager = ({ questionId, questionText }: OptionManagerProps) => {
       filter: { questionId: { eq: questionId } },
     }).subscribe({
       next: ({ items }) =>
-        setOptions(items.slice().sort((a, b) => a.score - b.score)),
+        setOptions(items.slice().sort((a, b) => (a.score || 0) - (b.score || 0))),
     });
     return () => sub.unsubscribe();
   }, [questionId]);
@@ -45,7 +46,7 @@ const OptionManager = ({ questionId, questionText }: OptionManagerProps) => {
     } as unknown as Schema["Option"]["createType"]);
 
     if (data) {
-      setOptions((prev) => [...prev, data].sort((a, b) => a.score - b.score));
+      setOptions((prev) => [...prev, data].sort((a, b) => (a.score || 0) - (b.score || 0)));
     }
   };
 
@@ -91,8 +92,9 @@ const OptionManager = ({ questionId, questionText }: OptionManagerProps) => {
 };
 
 export default function SurveyEditor() {
-  const params = useParams();
-  const surveyId = params.id as string;
+  const params = useParams<{ id?: string }>();
+  const surveyId = params?.id ?? "";
+  const locale = useLocale();
 
   const [survey, setSurvey] = useState<Schema["Survey"]["type"] | null>(null);
   const [questions, setQuestions] = useState<QuestionType[]>([]);
@@ -156,7 +158,7 @@ export default function SurveyEditor() {
     <div className="min-h-screen bg-gray-50 text-black p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-6">
-          <Link href="/" className="text-sm text-blue-600 hover:underline">
+          <Link href={"/" + locale} className="text-sm text-blue-600 hover:underline">
             ← Volver al Dashboard
           </Link>
           <h1 className="text-4xl font-extrabold mt-2 text-gray-800">

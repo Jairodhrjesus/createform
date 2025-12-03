@@ -19,6 +19,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
+        "./src/*",
         "./*"
       ]
     },
@@ -28,12 +29,12 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "strictNullChecks": true
   },
   "include": [
     "amplify_outputs.json",
-    "app/**/*",
-    "components/**/*",
+    "src/**/*",
     "amplify/**/*",
     "next-env.d.ts",
     ".next/types/**/*.ts"

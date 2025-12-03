@@ -3,7 +3,7 @@
 import { useAuthenticator } from "@aws-amplify/ui-react";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import LoadingSpinner from "@/components/LoadingSpinner";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
 /**
  * Route guard that redirects unauthenticated users and shows a spinner while loading.

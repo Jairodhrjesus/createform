@@ -1,0 +1,79 @@
+{
+  "Navbar": {
+    "brand": "CreateForm",
+    "results": "Resultados",
+    "settings": "Perfil",
+    "logout": "Salir",
+    "account": "Cuenta"
+  },
+  "AuthFlow": {
+    "signInErrorNotAuthorized": "Correo o contraseña incorrecta.",
+    "signInErrorUserNotFound": "Usuario no encontrado.",
+    "signInErrorUserNotConfirmed": "Te enviamos un código de confirmación.",
+    "signInErrorGeneric": "No se pudo iniciar sesión.",
+    "confirmCodeSent": "Enviamos un código a {email}.",
+    "accountCreated": "Cuenta creada. Ya puedes iniciar sesión.",
+    "signUpErrorExists": "El usuario ya existe.",
+    "signUpErrorWeak": "La contraseña no cumple los requisitos.",
+    "signUpErrorGeneric": "No se pudo crear la cuenta.",
+    "confirmTitle": "Confirma tu cuenta",
+    "confirmSubtitle": "Ingresa el código de 6 dígitos enviado a {email}",
+    "confirmLabel": "Código de confirmación",
+    "confirmSubmitting": "Confirmando...",
+    "confirmSubmit": "Confirmar",
+    "confirmBack": "Volver al login",
+    "codeInvalid": "Código inválido.",
+    "resetSendFailed": "No se pudo enviar el código.",
+    "codeFormatInvalid": "El código debe tener 6 dígitos.",
+    "resetSuccess": "Contraseña actualizada.",
+    "resetFailed": "No se pudo restablecer la contraseña."
+  },
+  "AuthLayout": {
+    "brand": "CreateForm",
+    "heroTitle": "Centraliza tus formularios y respuestas",
+    "heroSubtitle": "Crea encuestas, comparte enlaces y analiza resultados desde un solo lugar.",
+    "copyright": "© CreateForm. Todos los derechos reservados."
+  },
+  "LoginForm": {
+    "title": "Bienvenido de nuevo",
+    "emailLabel": "Correo",
+    "passwordLabel": "Contraseña",
+    "submit": "Iniciar sesión",
+    "loading": "Ingresando...",
+    "forgot": "¿Olvidaste tu contraseña?",
+    "switchPrompt": "¿No tienes cuenta?",
+    "switchCta": "Regístrate",
+    "placeholderEmail": "tu@ejemplo.com",
+    "placeholderPassword": "Tu contraseña"
+  },
+  "SignUpForm": {
+    "title": "Crea tu cuenta",
+    "emailLabel": "Correo",
+    "passwordLabel": "Contraseña",
+    "nameLabel": "Nombre de usuario preferido",
+    "placeholderName": "Tu nombre a mostrar",
+    "submit": "Crear cuenta",
+    "loading": "Creando...",
+    "switchPrompt": "¿Ya tienes cuenta?",
+    "switchCta": "Inicia sesión",
+    "placeholderEmail": "tu@ejemplo.com",
+    "placeholderPassword": "Mínimo 8 caracteres, 1 número, 1 símbolo",
+    "passwordHint": "Mínimo 8 caracteres, 1 número, 1 símbolo"
+  },
+  "ForgotPasswordForm": {
+    "titleRequest": "Restablece tu contraseña",
+    "titleVerify": "Revisa tu correo",
+    "titleReset": "Ingresa nueva contraseña",
+    "emailLabel": "Correo",
+    "codeLabel": "Código",
+    "newPasswordLabel": "Nueva contraseña",
+    "submitEmail": "Enviar código",
+    "submitCode": "Continuar",
+    "submitPassword": "Cambiar contraseña",
+    "loading": "Espera...",
+    "placeholderEmail": "tu@ejemplo.com",
+    "placeholderCode": "123456",
+    "placeholderPassword": "Nueva contraseña",
+    "back": "Volver al login"
+  }
+}

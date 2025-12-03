@@ -33,6 +33,7 @@
     "@aws-amplify/ui-react": "^6.13.1",
     "aws-amplify": "^6.15.8",
     "next": "^15.0.3",
+    "next-intl": "^4.5.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   }
