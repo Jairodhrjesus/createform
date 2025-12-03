@@ -3,10 +3,15 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useLocale } from "next-intl";
+import { useAuthenticator } from "@aws-amplify/ui-react";
+import { signOut } from "aws-amplify/auth";
 import { client } from "@/utils/amplify-utils";
 import type { Schema } from "@/amplify/data/resource";
 import OutcomeManager from "@/components/OutcomeManager";
-import { useLocale } from "next-intl";
+import Navbar from "@/components/layout/Navbar";
+import Modal from "@/components/ui/Modal";
+import Breadcrumbs from "@/components/ui/Breadcrumbs";
 
 type QuestionType = Schema["Question"]["type"];
 type OptionType = Schema["Option"]["type"];
@@ -18,6 +23,12 @@ interface OptionManagerProps {
 
 const OptionManager = ({ questionId, questionText }: OptionManagerProps) => {
   const [options, setOptions] = useState<OptionType[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newText, setNewText] = useState("");
+  const [newScore, setNewScore] = useState("0");
+  const [savingOption, setSavingOption] = useState(false);
+  const [optionToDelete, setOptionToDelete] = useState<OptionType | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const sub = client.models.Option.observeQuery({
@@ -29,64 +40,157 @@ const OptionManager = ({ questionId, questionText }: OptionManagerProps) => {
     return () => sub.unsubscribe();
   }, [questionId]);
 
-  const addOption = async () => {
-    const text = prompt(`Opcion para: "${questionText}"`);
-    if (!text) return;
+  const addOption = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newText.trim()) return;
+    setSavingOption(true);
+    const score = parseInt(newScore || "0", 10);
 
-    const scoreStr = prompt(
-      `Puntaje para la opcion "${text}" (Solo numeros, ej: 10)`,
-      "0"
-    );
-    const score = parseInt(scoreStr || "0", 10);
-
-    const { data } = await client.models.Option.create({
+    const { data, errors } = await client.models.Option.create({
       questionId,
-      text,
-      score,
+      text: newText.trim(),
+      score: Number.isNaN(score) ? 0 : score,
     } as unknown as Schema["Option"]["createType"]);
+
+    if (errors) {
+      console.error(errors);
+    }
 
     if (data) {
       setOptions((prev) => [...prev, data].sort((a, b) => (a.score || 0) - (b.score || 0)));
+      setShowAddModal(false);
+      setNewText("");
+      setNewScore("0");
     }
+    setSavingOption(false);
   };
 
-  const deleteOption = async (id: string) => {
-    if (window.confirm("¿Borrar esta opcion?")) {
-      await client.models.Option.delete({ id });
-      setOptions((prev) => prev.filter((opt) => opt.id !== id));
-    }
+  const deleteOption = async () => {
+    if (!optionToDelete) return;
+    setDeleting(true);
+    await client.models.Option.delete({ id: optionToDelete.id });
+    setOptions((prev) => prev.filter((opt) => opt.id !== optionToDelete.id));
+    setDeleting(false);
+    setOptionToDelete(null);
   };
 
   return (
-    <div className="mt-3 pl-4 border-l-2 border-gray-200">
-      <p className="text-xs font-bold text-gray-500 uppercase mb-2">
-        Opciones de respuesta:
-      </p>
+    <div className="mt-3 border border-slate-100 rounded-xl bg-slate-50/70 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Opciones de respuesta
+          </p>
+          <p className="text-[11px] text-slate-500">Define las opciones y su puntaje.</p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+        >
+          + Añadir opción
+        </button>
+      </div>
       <ul className="space-y-2">
         {options.map((opt) => (
           <li
             key={opt.id}
-            className="text-sm flex justify-between bg-gray-50 p-2 rounded items-center"
+            className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm"
           >
-            <span className="text-black">
-              {opt.text}{" "}
-              <strong className="text-blue-600">({opt.score} pts)</strong>
-            </span>
+            <div className="flex flex-col">
+              <span className="text-sm text-slate-900">{opt.text}</span>
+              <span className="text-xs text-slate-500">{opt.score ?? 0} pts</span>
+            </div>
             <button
-              onClick={() => deleteOption(opt.id)}
-              className="text-red-400 hover:text-red-600 transition text-xs"
+              onClick={() => setOptionToDelete(opt)}
+              className="text-xs font-medium text-red-600 hover:text-red-700"
             >
-              [Borrar]
+              Eliminar
             </button>
           </li>
         ))}
+        {options.length === 0 && (
+          <li className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500 text-center">
+            Aún no hay opciones para esta pregunta.
+          </li>
+        )}
       </ul>
-      <button
-        onClick={addOption}
-        className="mt-2 text-xs text-blue-600 hover:underline flex items-center gap-1 font-semibold"
+
+      <Modal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Añadir opción"
+        description={`Pregunta: ${questionText}`}
+        footer={
+          <>
+            <button
+              onClick={() => setShowAddModal(false)}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              type="button"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={addOption}
+              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+              disabled={!newText.trim() || savingOption}
+              type="submit"
+            >
+              {savingOption ? "Guardando..." : "Guardar opción"}
+            </button>
+          </>
+        }
       >
-        + Añadir Opcion
-      </button>
+        <form className="space-y-3" onSubmit={addOption}>
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Texto de la opción
+            </label>
+            <input
+              value={newText}
+              onChange={(e) => setNewText(e.target.value)}
+              placeholder='Ej: "Opción A"'
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Puntaje
+            </label>
+            <input
+              type="number"
+              value={newScore}
+              onChange={(e) => setNewScore(e.target.value)}
+              placeholder="Ej: 10"
+              aria-label="Puntaje de la opción"
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(optionToDelete)}
+        onClose={() => setOptionToDelete(null)}
+        title="Eliminar opción"
+        description={`Se eliminará "${optionToDelete?.text}" de esta pregunta.`}
+        footer={
+          <>
+            <button
+              onClick={() => setOptionToDelete(null)}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={deleteOption}
+              className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60"
+              disabled={deleting}
+            >
+              {deleting ? "Eliminando..." : "Eliminar"}
+            </button>
+          </>
+        }
+      />
     </div>
   );
 };
@@ -95,11 +199,21 @@ export default function SurveyEditor() {
   const params = useParams<{ id?: string }>();
   const surveyId = params?.id ?? "";
   const locale = useLocale();
+  const { user } = useAuthenticator();
+
+  const userName =
+    user?.signInDetails?.loginId ||
+    (user as any)?.attributes?.preferred_username ||
+    (user as any)?.attributes?.email ||
+    user?.username ||
+    (user as any)?.attributes?.name ||
+    "";
 
   const [survey, setSurvey] = useState<Schema["Survey"]["type"] | null>(null);
   const [questions, setQuestions] = useState<QuestionType[]>([]);
   const [newQText, setNewQText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [confirmQuestionId, setConfirmQuestionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!surveyId) return;
@@ -144,86 +258,188 @@ export default function SurveyEditor() {
     setNewQText("");
   };
 
-  const deleteQuestion = async (id: string) => {
-    if (window.confirm("¿Borrar pregunta y todas sus opciones?")) {
-      await client.models.Question.delete({ id });
-      setQuestions((prev) => prev.filter((q) => q.id !== id));
-    }
+  const deleteQuestion = async () => {
+    if (!confirmQuestionId) return;
+    await client.models.Question.delete({ id: confirmQuestionId });
+    setQuestions((prev) => prev.filter((q) => q.id !== confirmQuestionId));
+    setConfirmQuestionId(null);
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-600">Cargando editor...</div>;
-  if (!survey) return <div className="p-8 text-center text-red-600">Encuesta no encontrada.</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-slate-700 flex items-center justify-center">
+        Cargando editor...
+      </div>
+    );
+  }
+  if (!survey) {
+    return (
+      <div className="min-h-screen bg-slate-50 text-red-600 flex items-center justify-center">
+        Encuesta no encontrada.
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-black p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <Link href={"/" + locale} className="text-sm text-blue-600 hover:underline">
-            ← Volver al Dashboard
-          </Link>
-          <h1 className="text-4xl font-extrabold mt-2 text-gray-800">
-            {survey.title}
-          </h1>
-          <p className="text-lg text-gray-500 mt-1">{survey.description}</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
+      <Navbar userName={userName} onSignOut={async () => signOut()} />
 
-        <OutcomeManager surveyId={surveyId} />
-
-        <div className="bg-white p-6 rounded-lg mb-8 shadow-lg border mt-8">
-          <h3 className="text-2xl font-bold mb-4">Añadir Pregunta</h3>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={newQText}
-              onChange={(e) => setNewQText(e.target.value)}
-              placeholder="Escribe la nueva pregunta..."
-              className="flex-1 p-3 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
+      <div className="mx-auto flex w-full flex-col gap-6 px-4 pb-12 pt-6 lg:px-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Breadcrumbs
+              items={[
+                { label: "Dashboard", href: `/${locale}` },
+                { label: survey.title || "Encuesta" },
+              ]}
             />
-            <button
-              onClick={addQuestion}
-              className="bg-black text-white px-5 py-3 rounded-lg hover:bg-gray-800 font-semibold transition"
-              disabled={!newQText.trim()}
-            >
-              Añadir Pregunta
-            </button>
+            <h1 className="mt-2 text-3xl font-bold text-slate-900">{survey.title}</h1>
+            <p className="text-sm text-slate-500">{survey.description}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm text-sm text-slate-700">
+            <p className="font-semibold">ID encuesta</p>
+            <p className="font-mono text-xs text-slate-500">{survey.id}</p>
           </div>
         </div>
 
-        <h2 className="text-3xl font-bold mb-4 text-gray-800 border-b pb-2">
-          Estructura de la Encuesta
-        </h2>
-        <div className="space-y-6">
-          {questions.map((q, index) => (
-            <div
-              key={q.id}
-              className="border p-6 rounded-lg shadow-md bg-white relative group"
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-xl font-medium">
-                  <span className="text-gray-400 mr-2 font-mono">
-                    #{index + 1}
-                  </span>
-                  {q.text}
-                </h4>
-                <button
-                  onClick={() => deleteQuestion(q.id)}
-                  className="text-red-500 hover:text-red-700 transition text-sm"
-                >
-                  [Eliminar]
-                </button>
+        <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
+          <section className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Estructura
+                  </p>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Preguntas ({questions.length})
+                  </h2>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newQText}
+                    onChange={(e) => setNewQText(e.target.value)}
+                    placeholder="Escribe una nueva pregunta..."
+                    className="w-64 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-slate-900/80"
+                  />
+                  <button
+                    onClick={addQuestion}
+                    disabled={!newQText.trim()}
+                    className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    Añadir
+                  </button>
+                </div>
               </div>
-
-              <OptionManager questionId={q.id} questionText={q.text} />
             </div>
-          ))}
 
-          {questions.length === 0 && (
-            <p className="text-center text-gray-500 py-10 border border-dashed rounded-lg bg-white">
-              Aun no hay preguntas. Añade la primera!
-            </p>
-          )}
+            <div className="space-y-3">
+              {questions.map((q, index) => (
+                <div
+                  key={q.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Pregunta #{index + 1}
+                      </p>
+                      <h3 className="mt-1 text-lg font-semibold text-slate-900">{q.text}</h3>
+                      <p className="text-xs text-slate-500">ID: {q.id}</p>
+                    </div>
+                    <button
+                      onClick={() => setConfirmQuestionId(q.id)}
+                      className="rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                  <OptionManager questionId={q.id} questionText={q.text} />
+                </div>
+              ))}
+
+              {questions.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
+                  <p className="text-sm font-semibold text-slate-800">
+                    Aún no hay preguntas
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Añade tu primera pregunta para diseñar el cuestionario.
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <aside className="space-y-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Resultados y rangos
+                  </p>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Reglas de Outcome
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    Mapea puntajes a un resultado para mostrar recomendaciones.
+                  </p>
+                </div>
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-600 text-sm font-semibold"
+                  title="Define tramos de puntaje (mínimo y máximo) y el Outcome que verá el usuario al finalizar la encuesta."
+                  aria-label="Ayuda sobre outcomes"
+                >
+                  ?
+                </div>
+              </div>
+              <div className="mt-4">
+                <OutcomeManager surveyId={surveyId} />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-900 text-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
+                Estado
+              </p>
+              <h3 className="mt-2 text-lg font-semibold">
+                {questions.length} pregunta{questions.length === 1 ? "" : "s"}
+              </h3>
+              <p className="mt-1 text-sm text-white/80">
+                Agrega opciones y outcomes para publicar tu encuesta.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-white/10 px-3 py-1">
+                  ID: {survey.id?.slice(0, 8)}...
+                </span>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
+
+      <Modal
+        open={Boolean(confirmQuestionId)}
+        onClose={() => setConfirmQuestionId(null)}
+        title="Eliminar pregunta"
+        description="Esto eliminará la pregunta y todas sus opciones asociadas."
+        footer={
+          <>
+            <button
+              onClick={() => setConfirmQuestionId(null)}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={deleteQuestion}
+              className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+            >
+              Eliminar
+            </button>
+          </>
+        }
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocale } from "next-intl";
 import { client } from "@/utils/amplify-utils";
 import type { Schema } from "@/amplify/data/resource";
+import Modal from "@/components/ui/Modal";
 
 type SurveyType = Schema["Survey"]["type"];
 type WorkspaceType = Schema["Workspace"]["type"];
@@ -21,6 +22,16 @@ export default function Dashboard() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [creatingDefaultWorkspace, setCreatingDefaultWorkspace] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newSurveyTitle, setNewSurveyTitle] = useState("");
+  const [createWorkspaceId, setCreateWorkspaceId] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [savingSurvey, setSavingSurvey] = useState(false);
+  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceDesc, setWorkspaceDesc] = useState("");
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [savingWorkspace, setSavingWorkspace] = useState(false);
   const locale = useLocale();
   const workspaceModel = (client as any)?.models?.Workspace;
   const hasWorkspaceModel = Boolean(workspaceModel?.observeQuery);
@@ -141,61 +152,96 @@ export default function Dashboard() {
     [activeWorkspaceId, workspaces, hasWorkspaceModel]
   );
 
-  const handleCreateWorkspace = async () => {
+  useEffect(() => {
+    if (!hasWorkspaceModel) return;
+    const resolved = resolveWorkspaceId(null);
+    setCreateWorkspaceId(resolved);
+  }, [activeWorkspaceId, workspaces, hasWorkspaceModel, resolveWorkspaceId]);
+
+  const handleCreateWorkspace = () => {
+    setWorkspaceError(null);
+    setWorkspaceName("");
+    setWorkspaceDesc("");
+    setShowWorkspaceModal(true);
+  };
+
+  const submitWorkspace = async () => {
     if (!hasWorkspaceModel || !workspaceModel?.create) {
-      alert("Necesitas actualizar el backend (amplify push) para habilitar workspaces.");
+      setWorkspaceError("Actualiza el backend (amplify push) para habilitar workspaces.");
       return;
     }
-    const name = window.prompt("Nombre del nuevo workspace:");
-    if (!name?.trim()) return;
-
+    if (!workspaceName.trim()) {
+      setWorkspaceError("Ingresa un nombre para el workspace.");
+      return;
+    }
+    setSavingWorkspace(true);
     const payload = {
-      name: name.trim(),
-      description: "Espacio de trabajo",
+      name: workspaceName.trim(),
+      description: workspaceDesc.trim() || "Espacio de trabajo",
       isDefault: workspaces.length === 0,
     };
     const { data, errors } = await workspaceModel.create(
       payload as unknown as Schema["Workspace"]["createType"]
     );
+    setSavingWorkspace(false);
 
     if (errors) {
       console.error(errors);
-      alert("Error al crear el workspace");
+      setWorkspaceError("Error al crear el workspace.");
       return;
     }
 
     if (data?.id) {
       setActiveWorkspaceId(data.id as string);
+      setCreateWorkspaceId(data.id as string);
     }
+    setShowWorkspaceModal(false);
+    setWorkspaceName("");
+    setWorkspaceDesc("");
+    setWorkspaceError(null);
   };
 
-  const handleCreateSurvey = async () => {
-    const title = window.prompt("Como se llamara tu nueva encuesta?");
-    if (!title) return;
+  const submitCreateSurvey = async () => {
+    setCreateError(null);
+    if (!newSurveyTitle.trim()) {
+      setCreateError("Ingresa un titulo para tu formulario.");
+      return;
+    }
 
-    const workspaceId = resolveWorkspaceId(null);
+    const workspaceId = hasWorkspaceModel
+      ? createWorkspaceId || resolveWorkspaceId(null)
+      : null;
+
+    if (hasWorkspaceModel && !workspaceId) {
+      setCreateError("Crea primero un workspace para alojar tus formularios.");
+      return;
+    }
 
     const payload: Record<string, unknown> = {
-      title,
+      title: newSurveyTitle.trim(),
       description: "Borrador inicial",
       isActive: true,
     };
 
     if (hasWorkspaceModel && workspaceId) {
       payload.workspaceId = workspaceId;
-    } else if (hasWorkspaceModel && !workspaceId) {
-      alert("Crea primero un workspace para alojar tus formularios.");
-      return;
     }
 
+    setSavingSurvey(true);
     const { errors } = await client.models.Survey.create(
       payload as unknown as Schema["Survey"]["createType"]
     );
+    setSavingSurvey(false);
 
     if (errors) {
       console.error(errors);
-      alert("Error al crear la encuesta");
+      setCreateError("Error al crear la encuesta. Intenta de nuevo.");
+      return;
     }
+
+    setShowCreateModal(false);
+    setNewSurveyTitle("");
+    setCreateError(null);
   };
 
   const handleDelete = async (id: string) => {
@@ -312,7 +358,7 @@ export default function Dashboard() {
           </div>
 
           <button
-            onClick={handleCreateSurvey}
+            onClick={() => setShowCreateModal(true)}
             className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800 sm:w-auto"
           >
             <span className="text-lg leading-none">+</span>
@@ -341,10 +387,10 @@ export default function Dashboard() {
             <div className="h-px bg-slate-100" />
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Espacios de trabajo
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Espacios de trabajo
+                  </p>
                 {hasWorkspaceModel && (
                   <button
                     onClick={handleCreateWorkspace}
@@ -488,7 +534,7 @@ export default function Dashboard() {
                     respuestas.
                   </p>
                   <button
-                    onClick={handleCreateSurvey}
+                    onClick={() => setShowCreateModal(true)}
                     className="mt-4 inline-flex items-center gap-1 rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800"
                   >
                     Crear formulario
@@ -799,6 +845,139 @@ export default function Dashboard() {
           </section>
         </div>
       </div>
+
+      <Modal
+        open={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setCreateError(null);
+        }}
+        title="Crear nuevo formulario"
+        description="Nombra tu encuesta y asigna un workspace (si aplica)."
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setShowCreateModal(false);
+                setCreateError(null);
+              }}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={submitCreateSurvey}
+              disabled={savingSurvey}
+              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+            >
+              {savingSurvey ? "Creando..." : "Crear formulario"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-semibold text-slate-800">
+              Nombre del formulario
+            </label>
+            <input
+              type="text"
+              value={newSurveyTitle}
+              onChange={(e) => setNewSurveyTitle(e.target.value)}
+              placeholder="Ej: Encuesta de satisfaccion"
+              aria-label="Nombre del formulario"
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+
+          {hasWorkspaceModel && (
+            <div>
+              <label className="text-sm font-semibold text-slate-800">
+                Workspace destino
+              </label>
+              <select
+                value={createWorkspaceId || ""}
+                onChange={(e) => setCreateWorkspaceId(e.target.value || null)}
+                aria-label="Selecciona workspace"
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              >
+                <option value="">Selecciona workspace</option>
+                {workspaces.map((ws) => (
+                  <option key={ws.id} value={ws.id as string}>
+                    {ws.name || "Sin nombre"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {createError && (
+            <p className="text-xs font-medium text-red-600">{createError}</p>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={showWorkspaceModal}
+        onClose={() => {
+          setShowWorkspaceModal(false);
+          setWorkspaceError(null);
+        }}
+        title="Crear workspace"
+        description="Organiza tus formularios en espacios separados."
+        footer={
+          <>
+            <button
+              onClick={() => {
+                setShowWorkspaceModal(false);
+                setWorkspaceError(null);
+              }}
+              className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={submitWorkspace}
+              disabled={savingWorkspace}
+              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800 disabled:opacity-60"
+            >
+              {savingWorkspace ? "Creando..." : "Crear workspace"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm font-semibold text-slate-800">
+              Nombre
+            </label>
+            <input
+              type="text"
+              value={workspaceName}
+              onChange={(e) => setWorkspaceName(e.target.value)}
+              placeholder="Ej: Marketing"
+              aria-label="Nombre del workspace"
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-semibold text-slate-800">
+              Descripcion (opcional)
+            </label>
+            <textarea
+              value={workspaceDesc}
+              onChange={(e) => setWorkspaceDesc(e.target.value)}
+              rows={2}
+              placeholder="Para agrupar formularios relacionados..."
+              aria-label="Descripcion del workspace"
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+          {workspaceError && (
+            <p className="text-xs font-medium text-red-600">{workspaceError}</p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
