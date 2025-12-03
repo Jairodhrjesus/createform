@@ -14,6 +14,16 @@ const schema = a.schema({
     title: a.string().required(),
     description: a.string(),
     isActive: a.boolean().default(true),
+    // Config de captura de leads (Email Gate)
+    leadCaptureEnabled: a.boolean().default(true),
+    leadCaptureRequireName: a.boolean().default(false),
+    leadCaptureRequireEmail: a.boolean().default(true),
+    leadCaptureCollectName: a.boolean().default(true),
+    leadCaptureCollectEmail: a.boolean().default(true),
+    leadCaptureTitle: a.string(),
+    leadCaptureSubtitle: a.string(),
+    leadCaptureCtaLabel: a.string(),
+    leadCaptureDisclaimer: a.string(),
 
     // Opcional para no romper datos antiguos; el UI siempre asigna workspace
     workspaceId: a.id(),
@@ -76,6 +86,8 @@ const schema = a.schema({
     outcomeTitle: a.string(), 
     answersContent: a.json(), // Guardamos el detalle como JSON
     respondentId: a.string(), // Opcional: para rastrear cookies/sesiones anonimas
+    respondentName: a.string(), // Lead capture
+    respondentEmail: a.string().required(), // Email gate requerido
   }).authorization((allow) => [
     allow.owner(), // Tu ves todas las respuestas
     allow.publicApiKey() // Cualquiera puede CREAR una respuesta

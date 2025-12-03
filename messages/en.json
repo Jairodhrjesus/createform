@@ -5,7 +5,7 @@
     "settings": "Profile",
     "logout": "Sign out",
     "account": "Account"
-  },  
+  },
   "AuthFlow": {
     "signInErrorNotAuthorized": "Incorrect email or password.",
     "signInErrorUserNotFound": "User not found.",
@@ -70,5 +70,105 @@
     "placeholderCode": "123456",
     "placeholderPassword": "New password",
     "back": "Back to login"
+  },
+  "Dashboard": {
+    "workspaceTag": "Workspace",
+    "title": "My forms",
+    "subtitle": "Manage your surveys by workspace. Active: {workspace}",
+    "createSurvey": "Create form",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Search form",
+    "workspaces": "Workspaces",
+    "createWorkspace": "Create workspace",
+    "allWorkspaces": "All workspaces",
+    "unassigned": "No workspace",
+    "untitledWorkspace": "Untitled",
+    "defaultWorkspace": "default",
+    "workspacesUnavailable": "Workspaces unavailable until backend is updated (amplify push).",
+    "summaryTitle": "Quick summary",
+    "summaryVisible": "Visible forms:",
+    "view": {
+      "list": "List",
+      "grid": "Grid"
+    },
+    "toolbar": {
+      "formsIn": "Forms in \"{workspace}\"",
+      "results": "{count, plural, one {# item found} other {# items found}}",
+      "sortLabel": "Sort by",
+      "sortCreated": "Created",
+      "sortUpdated": "Last update",
+      "sortAlpha": "Alphabetical"
+    },
+    "empty": {
+      "title": "You don't have forms yet",
+      "subtitle": "Create your first form to start collecting responses.",
+      "cta": "Create form"
+    },
+    "table": {
+      "name": "Name",
+      "responses": "Responses",
+      "status": "Status",
+      "updated": "Updated",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "draft": "Draft"
+    },
+    "responsesPlaceholder": "-",
+    "actions": {
+      "share": "Share",
+      "copyLink": "Copy link",
+      "copyId": "Copy ID",
+      "deactivate": "Deactivate",
+      "publish": "Publish",
+      "duplicate": "Duplicate",
+      "edit": "Edit",
+      "moveTo": "Move to",
+      "delete": "Delete",
+      "confirmDelete": "Delete this form?",
+      "manualCopy": "Copy manually:"
+    },
+    "card": {
+      "updated": "Updated: {date}",
+      "open": "Open"
+    },
+    "untitledSurvey": "Untitled",
+    "errors": {
+      "workspaceBackendMissing": "Update the backend (amplify push) to enable workspaces.",
+      "workspaceNameRequired": "Enter a workspace name.",
+      "workspaceCreate": "Could not create workspace.",
+      "surveyTitleRequired": "Enter a title for your form.",
+      "workspaceRequired": "Create a workspace first to store your forms.",
+      "surveyCreate": "Could not create the form. Try again.",
+      "toggleActive": "Could not change status. Try again.",
+      "duplicateSurvey": "Could not duplicate. Try again.",
+      "moveSurvey": "Could not move the form. Try again."
+    },
+    "modals": {
+      "common": {
+        "cancel": "Cancel"
+      },
+      "createSurvey": {
+        "title": "Create new form",
+        "description": "Name your survey and assign a workspace (if applicable).",
+        "loading": "Creating...",
+        "submit": "Create form",
+        "nameLabel": "Form name",
+        "namePlaceholder": "e.g. Satisfaction survey",
+        "workspaceLabel": "Target workspace",
+        "workspacePlaceholder": "Select workspace"
+      },
+      "createWorkspace": {
+        "title": "Create workspace",
+        "description": "Organize your forms in separate spaces.",
+        "loading": "Creating...",
+        "submit": "Create workspace",
+        "nameLabel": "Name",
+        "namePlaceholder": "e.g. Marketing",
+        "descriptionLabel": "Description (optional)",
+        "descriptionPlaceholder": "Group related forms..."
+      }
+    }
   }
 }

@@ -76,5 +76,105 @@
     "placeholderCode": "123456",
     "placeholderPassword": "Nueva contraseña",
     "back": "Volver al login"
+  },
+  "Dashboard": {
+    "workspaceTag": "Workspace",
+    "title": "Mis formularios",
+    "subtitle": "Gestiona tus encuestas por workspace. Activo: {workspace}",
+    "createSurvey": "Crear formulario",
+    "searchLabel": "Busqueda",
+    "searchPlaceholder": "Buscar formulario",
+    "workspaces": "Espacios de trabajo",
+    "createWorkspace": "Crear workspace",
+    "allWorkspaces": "Todos los workspaces",
+    "unassigned": "Sin workspace",
+    "untitledWorkspace": "Sin nombre",
+    "defaultWorkspace": "default",
+    "workspacesUnavailable": "Workspaces no disponibles hasta actualizar el backend (amplify push).",
+    "summaryTitle": "Resumen rapido",
+    "summaryVisible": "Formularios visibles:",
+    "view": {
+      "list": "Lista",
+      "grid": "Cuadricula"
+    },
+    "toolbar": {
+      "formsIn": "Formularios en \"{workspace}\"",
+      "results": "{count, plural, one {# elemento encontrado} other {# elementos encontrados}}",
+      "sortLabel": "Ordenar por",
+      "sortCreated": "Fecha de creación",
+      "sortUpdated": "Última actualización",
+      "sortAlpha": "Alfabético"
+    },
+    "empty": {
+      "title": "Aun no tienes formularios",
+      "subtitle": "Crea tu primer formulario para comenzar a recopilar respuestas.",
+      "cta": "Crear formulario"
+    },
+    "table": {
+      "name": "Nombre",
+      "responses": "Respuestas",
+      "status": "Estado",
+      "updated": "Actualizado",
+      "actions": "Acciones"
+    },
+    "status": {
+      "active": "Activo",
+      "draft": "Borrador"
+    },
+    "responsesPlaceholder": "-",
+    "actions": {
+      "share": "Compartir",
+      "copyLink": "Copiar link",
+      "copyId": "Copiar ID",
+      "deactivate": "Desactivar",
+      "publish": "Publicar",
+      "duplicate": "Duplicar",
+      "edit": "Editar",
+      "moveTo": "Mover a",
+      "delete": "Borrar",
+      "confirmDelete": "Seguro que quieres borrarla?",
+      "manualCopy": "Copia manualmente:"
+    },
+    "card": {
+      "updated": "Actualizado: {date}",
+      "open": "Abrir"
+    },
+    "untitledSurvey": "Sin titulo",
+    "errors": {
+      "workspaceBackendMissing": "Actualiza el backend (amplify push) para habilitar workspaces.",
+      "workspaceNameRequired": "Ingresa un nombre para el workspace.",
+      "workspaceCreate": "Error al crear el workspace.",
+      "surveyTitleRequired": "Ingresa un titulo para tu formulario.",
+      "workspaceRequired": "Crea primero un workspace para alojar tus formularios.",
+      "surveyCreate": "Error al crear la encuesta. Intenta de nuevo.",
+      "toggleActive": "No se pudo cambiar el estado. Intenta de nuevo.",
+      "duplicateSurvey": "No se pudo duplicar. Intenta de nuevo.",
+      "moveSurvey": "No se pudo mover la encuesta. Intenta de nuevo."
+    },
+    "modals": {
+      "common": {
+        "cancel": "Cancelar"
+      },
+      "createSurvey": {
+        "title": "Crear nuevo formulario",
+        "description": "Nombra tu encuesta y asigna un workspace (si aplica).",
+        "loading": "Creando...",
+        "submit": "Crear formulario",
+        "nameLabel": "Nombre del formulario",
+        "namePlaceholder": "Ej: Encuesta de satisfaccion",
+        "workspaceLabel": "Workspace destino",
+        "workspacePlaceholder": "Selecciona workspace"
+      },
+      "createWorkspace": {
+        "title": "Crear workspace",
+        "description": "Organiza tus formularios en espacios separados.",
+        "loading": "Creando...",
+        "submit": "Crear workspace",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "Ej: Marketing",
+        "descriptionLabel": "Descripcion (opcional)",
+        "descriptionPlaceholder": "Para agrupar formularios relacionados..."
+      }
+    }
   }
 }

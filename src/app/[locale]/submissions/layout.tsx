@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "SaaS Encuestas - Submissions",
-  description: "Historial de respuestas protegidas",
+  title: "SaaS Encuestas - Resultados",
+  description: "Dashboard de resultados y respuestas",
 };
 
 export default function SubmissionsLayout({
@@ -10,6 +10,6 @@ export default function SubmissionsLayout({
 }: {
   children: ReactNode;
 }) {
-  // Hereda html/body del layout raíz
+  // Hereda html/body del layout raiz
   return <>{children}</>;
 }
