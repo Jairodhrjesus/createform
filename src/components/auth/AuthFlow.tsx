@@ -76,7 +76,8 @@ export default function AuthFlow() {
         username: email,
         password,
         options: {
-          userAttributes: { email, preferredUsername: name },
+          // Cognito usa atributos snake_case en la API
+          userAttributes: { email, preferred_username: name },
         },
       });
 

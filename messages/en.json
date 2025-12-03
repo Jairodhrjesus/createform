@@ -22,6 +22,7 @@
     "confirmSubmitting": "Confirming...",
     "confirmSubmit": "Confirm",
     "confirmBack": "Back to login",
+    "accountVerified": "Account verified. You can sign in now.",
     "codeInvalid": "Invalid code.",
     "resetSendFailed": "Could not send reset code.",
     "codeFormatInvalid": "The code must be 6 digits.",

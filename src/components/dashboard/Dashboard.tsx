@@ -1,17 +1,92 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale } from "next-intl";
 import { client } from "@/utils/amplify-utils";
 import type { Schema } from "@/amplify/data/resource";
 
+type SurveyType = Schema["Survey"]["type"];
+type WorkspaceType = Schema["Workspace"]["type"];
+type WorkspaceFilter = string | "all" | "unassigned";
+
 export default function Dashboard() {
-  const [surveys, setSurveys] = useState<Schema["Survey"]["type"][]>([]);
+  const [surveys, setSurveys] = useState<SurveyType[]>([]);
+  const [workspaces, setWorkspaces] = useState<WorkspaceType[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<WorkspaceFilter>(() => {
+    if (typeof window === "undefined") return "all";
+    return (window.localStorage.getItem("activeWorkspaceId") as WorkspaceFilter) || "all";
+  });
   const [search, setSearch] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [creatingDefaultWorkspace, setCreatingDefaultWorkspace] = useState(false);
   const locale = useLocale();
+  const workspaceModel = (client as any)?.models?.Workspace;
+  const hasWorkspaceModel = Boolean(workspaceModel?.observeQuery);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("activeWorkspaceId", activeWorkspaceId);
+  }, [activeWorkspaceId]);
+
+  const ensureDefaultWorkspace = useCallback(async () => {
+    if (!hasWorkspaceModel || !workspaceModel?.create) return;
+    if (creatingDefaultWorkspace) return;
+    setCreatingDefaultWorkspace(true);
+    try {
+      const { errors } = await workspaceModel.create({
+        name: "Mi workspace",
+        description: "Espacio inicial",
+        isDefault: true,
+      } as unknown as Schema["Workspace"]["createType"]);
+
+      if (errors) {
+        console.error("No se pudo crear el workspace por defecto:", errors);
+      }
+    } catch (err) {
+      console.error("No se pudo crear el workspace por defecto:", err);
+    } finally {
+      setCreatingDefaultWorkspace(false);
+    }
+  }, [creatingDefaultWorkspace, hasWorkspaceModel, workspaceModel]);
+
+  useEffect(() => {
+    if (!hasWorkspaceModel || !workspaceModel?.observeQuery) return;
+    const subscription = workspaceModel.observeQuery().subscribe({
+      next: ({ items }) => {
+        const sorted = items
+          .slice()
+          .sort((a, b) => {
+            if (a.isDefault === b.isDefault) {
+              return (a.name || "").localeCompare(b.name || "");
+            }
+            return a.isDefault ? -1 : 1;
+          });
+
+        if (sorted.length === 0) {
+          void ensureDefaultWorkspace();
+        }
+
+        setWorkspaces(sorted);
+
+        if (
+          activeWorkspaceId !== "all" &&
+          activeWorkspaceId !== "unassigned" &&
+          sorted.length > 0
+        ) {
+          const exists = sorted.some((ws) => ws.id === activeWorkspaceId);
+          if (!exists) {
+            const fallback = (sorted.find((ws) => ws.isDefault) ?? sorted[0])?.id;
+            if (fallback) setActiveWorkspaceId(fallback as string);
+          }
+        }
+      },
+      error: (err) => console.error("Error observando workspaces:", err),
+    });
+
+    return () => subscription.unsubscribe();
+  }, [activeWorkspaceId, ensureDefaultWorkspace, hasWorkspaceModel, workspaceModel]);
 
   useEffect(() => {
     const subscription = client.models.Survey.observeQuery().subscribe({
@@ -20,21 +95,98 @@ export default function Dashboard() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const workspaceSurveyCounts = useMemo(() => {
+    if (!hasWorkspaceModel) return {};
+    const counts: Record<string, number> = {};
+    surveys.forEach((s) => {
+      const key = (s.workspaceId as string) || "unassigned";
+      counts[key] = (counts[key] ?? 0) + 1;
+    });
+    return counts;
+  }, [surveys, hasWorkspaceModel]);
+
+  const hasUnassigned = hasWorkspaceModel && workspaceSurveyCounts["unassigned"] > 0;
+
+  const activeWorkspaceName = useMemo(() => {
+    if (!hasWorkspaceModel) return "Mis formularios";
+    if (activeWorkspaceId === "all") return "Todos los workspaces";
+    if (activeWorkspaceId === "unassigned") return "Sin workspace";
+    return workspaces.find((w) => w.id === activeWorkspaceId)?.name || "Workspace";
+  }, [activeWorkspaceId, workspaces, hasWorkspaceModel]);
+
   const filteredSurveys = useMemo(() => {
-    if (!search.trim()) return surveys;
+    const byWorkspace = hasWorkspaceModel
+      ? surveys.filter((s) => {
+          if (activeWorkspaceId === "all") return true;
+          if (activeWorkspaceId === "unassigned") return !s.workspaceId;
+          return s.workspaceId === activeWorkspaceId;
+        })
+      : surveys;
+
+    if (!search.trim()) return byWorkspace;
     const q = search.toLowerCase();
-    return surveys.filter((s) => s.title?.toLowerCase().includes(q));
-  }, [surveys, search]);
+    return byWorkspace.filter((s) => s.title?.toLowerCase().includes(q));
+  }, [surveys, search, activeWorkspaceId, hasWorkspaceModel]);
+
+  const resolveWorkspaceId = useCallback(
+    (fallback?: string | null) => {
+      if (!hasWorkspaceModel) return fallback ?? null;
+      if (activeWorkspaceId !== "all" && activeWorkspaceId !== "unassigned") {
+        return activeWorkspaceId;
+      }
+      if (fallback) return fallback;
+      const ws = workspaces.find((w) => w.isDefault) ?? workspaces[0];
+      return (ws?.id as string) || null;
+    },
+    [activeWorkspaceId, workspaces, hasWorkspaceModel]
+  );
+
+  const handleCreateWorkspace = async () => {
+    if (!hasWorkspaceModel || !workspaceModel?.create) {
+      alert("Necesitas actualizar el backend (amplify push) para habilitar workspaces.");
+      return;
+    }
+    const name = window.prompt("Nombre del nuevo workspace:");
+    if (!name?.trim()) return;
+
+    const payload = {
+      name: name.trim(),
+      description: "Espacio de trabajo",
+      isDefault: workspaces.length === 0,
+    };
+    const { data, errors } = await workspaceModel.create(
+      payload as unknown as Schema["Workspace"]["createType"]
+    );
+
+    if (errors) {
+      console.error(errors);
+      alert("Error al crear el workspace");
+      return;
+    }
+
+    if (data?.id) {
+      setActiveWorkspaceId(data.id as string);
+    }
+  };
 
   const handleCreateSurvey = async () => {
     const title = window.prompt("Como se llamara tu nueva encuesta?");
     if (!title) return;
 
-    const payload = {
+    const workspaceId = resolveWorkspaceId(null);
+
+    const payload: Record<string, unknown> = {
       title,
       description: "Borrador inicial",
       isActive: true,
     };
+
+    if (hasWorkspaceModel && workspaceId) {
+      payload.workspaceId = workspaceId;
+    } else if (hasWorkspaceModel && !workspaceId) {
+      alert("Crea primero un workspace para alojar tus formularios.");
+      return;
+    }
 
     const { errors } = await client.models.Survey.create(
       payload as unknown as Schema["Survey"]["createType"]
@@ -49,9 +201,10 @@ export default function Dashboard() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Seguro que quieres borrarla?")) return;
     await client.models.Survey.delete({ id });
+    setOpenMenuId(null);
   };
 
-  const handleToggleActive = async (survey: Schema["Survey"]["type"]) => {
+  const handleToggleActive = async (survey: SurveyType) => {
     try {
       await client.models.Survey.update({
         id: survey.id as string,
@@ -65,14 +218,21 @@ export default function Dashboard() {
     }
   };
 
-  const handleDuplicate = async (survey: Schema["Survey"]["type"]) => {
+  const handleDuplicate = async (survey: SurveyType) => {
     try {
       const newTitle = `${survey.title || "Sin titulo"} (copia)`;
-      await client.models.Survey.create({
+      const targetWorkspaceId = resolveWorkspaceId(survey.workspaceId as string);
+      const payload: Record<string, unknown> = {
         title: newTitle,
         description: survey.description || "Borrador inicial",
         isActive: false,
-      } as unknown as Schema["Survey"]["createType"]);
+      };
+      if (hasWorkspaceModel) {
+        payload.workspaceId = targetWorkspaceId || undefined;
+      }
+      await client.models.Survey.create(
+        payload as unknown as Schema["Survey"]["createType"]
+      );
     } catch (err) {
       console.error("Error duplicando encuesta:", err);
       alert("No se pudo duplicar. Intenta de nuevo.");
@@ -105,6 +265,27 @@ export default function Dashboard() {
     setOpenMenuId(null);
   };
 
+  const handleMoveSurvey = async (surveyId: string, workspaceId: string) => {
+    if (!hasWorkspaceModel) {
+      alert("Actualiza el backend (amplify push) para usar workspaces.");
+      return;
+    }
+    try {
+      await client.models.Survey.update({
+        id: surveyId,
+        workspaceId,
+      } as unknown as Schema["Survey"]["updateType"]);
+      if (activeWorkspaceId === "unassigned") {
+        setActiveWorkspaceId(workspaceId);
+      }
+    } catch (err) {
+      console.error("No se pudo mover la encuesta:", err);
+      alert("No se pudo mover la encuesta. Intenta de nuevo.");
+    } finally {
+      setOpenMenuId(null);
+    }
+  };
+
   useEffect(() => {
     const closeOnOutside = () => setOpenMenuId(null);
     window.addEventListener("click", closeOnOutside);
@@ -125,7 +306,8 @@ export default function Dashboard() {
               Mis formularios
             </h1>
             <p className="text-sm text-slate-500">
-              Crea, organiza y comparte tus encuestas desde un solo lugar.
+              Gestiona tus encuestas por workspace. Activo:{" "}
+              <span className="font-semibold text-slate-900">{activeWorkspaceName}</span>
             </p>
           </div>
 
@@ -158,30 +340,88 @@ export default function Dashboard() {
 
             <div className="h-px bg-slate-100" />
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Espacios de trabajo
-              </p>
-              <div className="mt-3 flex flex-col gap-1 text-sm">
-                <button className="flex items-center justify-between rounded-xl border border-slate-900/10 bg-slate-900 px-3 py-2 text-white">
-                  <span className="truncate">Mi workspace</span>
-                  <span className="rounded-full bg-white/10 px-2 text-xs">
-                    {surveys.length}
-                  </span>
-                </button>
-                {/* Aqui podrias listar otros workspaces en el futuro */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Espacios de trabajo
+                </p>
+                {hasWorkspaceModel && (
+                  <button
+                    onClick={handleCreateWorkspace}
+                    className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    title="Crear workspace"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+              <div className="mt-1 flex flex-col gap-1 text-sm">
+                {hasWorkspaceModel ? (
+                  <>
+                    <button
+                      onClick={() => setActiveWorkspaceId("all")}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-2 transition ${
+                        activeWorkspaceId === "all"
+                          ? "border-slate-900/10 bg-slate-900 text-white"
+                          : "border-slate-900/10 bg-white text-slate-900 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="truncate">Todos los workspaces</span>
+                      <span className="rounded-full bg-white/10 px-2 text-xs">
+                        {surveys.length}
+                      </span>
+                    </button>
+                    {workspaces.map((ws) => (
+                      <button
+                        key={ws.id}
+                        onClick={() => setActiveWorkspaceId(ws.id as string)}
+                        className={`flex items-center justify-between rounded-xl border px-3 py-2 transition ${
+                          activeWorkspaceId === ws.id
+                            ? "border-slate-900/10 bg-slate-900 text-white"
+                            : "border-slate-900/10 bg-white text-slate-900 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="truncate">
+                          {ws.name || "Sin nombre"}
+                          {ws.isDefault ? " (default)" : ""}
+                        </span>
+                        <span className="rounded-full bg-white/10 px-2 text-xs">
+                          {workspaceSurveyCounts[ws.id as string] ?? 0}
+                        </span>
+                      </button>
+                    ))}
+                    {hasUnassigned && (
+                      <button
+                        onClick={() => setActiveWorkspaceId("unassigned")}
+                        className={`flex items-center justify-between rounded-xl border px-3 py-2 transition ${
+                          activeWorkspaceId === "unassigned"
+                            ? "border-slate-900/10 bg-slate-900 text-white"
+                            : "border-slate-900/10 bg-white text-slate-900 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="truncate">Sin workspace</span>
+                        <span className="rounded-full bg-white/10 px-2 text-xs">
+                          {workspaceSurveyCounts["unassigned"] ?? 0}
+                        </span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    Workspaces no disponibles hasta actualizar el backend (amplify push).
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="mt-auto rounded-xl bg-slate-900/5 px-3 py-3 text-xs text-slate-500">
               <p className="mb-1 font-medium text-slate-700">Resumen rapido</p>
               <p>
-                Formularios activos:{" "}
+                Formularios visibles:{" "}
                 <span className="font-semibold text-slate-900">
-                  {surveys.length}
+                  {filteredSurveys.length}
                 </span>
               </p>
-              {/* Si tienes `responses` o algo similar lo puedes mostrar aqui */}
             </div>
           </aside>
 
@@ -195,7 +435,7 @@ export default function Dashboard() {
                 </span>
                 <div>
                   <p className="text-sm font-medium text-slate-900">
-                    Formularios en "Mi workspace"
+                    Formularios en "{activeWorkspaceName}"
                   </p>
                   <p className="text-xs text-slate-500">
                     {filteredSurveys.length} elemento
@@ -287,10 +527,14 @@ export default function Dashboard() {
                                   >
                                     {survey.title || "Sin titulo"}
                                   </Link>
-                                  <div className="mt-2">
+                                  <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5">
+                                      {workspaces.find((w) => w.id === survey.workspaceId)?.name ||
+                                        "Sin workspace"}
+                                    </span>
                                     <button
                                       onClick={() => handleShare(survey.id as string)}
-                                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50"
+                                      className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-3 py-1 font-medium text-slate-700 hover:bg-slate-50"
                                     >
                                       Compartir
                                     </button>
@@ -322,7 +566,7 @@ export default function Dashboard() {
                               --
                             </td>
 
-                                                                                    <td className="relative px-3 py-2 text-xs">
+                            <td className="relative px-3 py-2 text-xs">
                               <div className="flex justify-end gap-2">
                                 <Link
                                   href={`/${locale}/surveys/${survey.id}`}
@@ -345,7 +589,7 @@ export default function Dashboard() {
                               </div>
                               {openMenuId === survey.id && (
                                 <div
-                                  className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                                  className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <button
@@ -356,10 +600,10 @@ export default function Dashboard() {
                                   </button>
                                   <button
                                     onClick={() => handleCopyId(survey.id as string)}
-                                  className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
-                                >
-                                  Copiar ID
-                                </button>
+                                    className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                                  >
+                                    Copiar ID
+                                  </button>
                                   <button
                                     onClick={() => handleToggleActive(survey)}
                                     className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
@@ -378,6 +622,27 @@ export default function Dashboard() {
                                   >
                                     Editar
                                   </Link>
+                                  <div className="border-t border-slate-100">
+                                    <p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                      Mover a
+                                    </p>
+                                    <div className="max-h-32 overflow-y-auto py-1">
+                                      {workspaces.map((ws) => (
+                                        <button
+                                          key={ws.id}
+                                          onClick={() =>
+                                            handleMoveSurvey(survey.id as string, ws.id as string)
+                                          }
+                                          className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                                        >
+                                          <span className="truncate">{ws.name || "Sin nombre"}</span>
+                                          <span className="text-[10px] text-slate-400">
+                                            {workspaceSurveyCounts[ws.id as string] ?? 0} f.
+                                          </span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
                                   <button
                                     onClick={() => handleDelete(survey.id as string)}
                                     className="flex w-full items-center px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
@@ -426,7 +691,8 @@ export default function Dashboard() {
                                 </button>
                               </div>
                               <p className="mt-1 text-xs text-slate-500 line-clamp-2">
-                                Borrador inicial
+                                {workspaces.find((w) => w.id === survey.workspaceId)?.name ||
+                                  "Sin workspace"}
                               </p>
                             </div>
                           </div>
@@ -442,7 +708,6 @@ export default function Dashboard() {
                               <span className="h-1.5 w-1.5 rounded-full bg-current" />
                               {survey.isActive ? "Activo" : "Borrador"}
                             </span>
-                            <span className="text-[11px]">...</span>
                             <span className="text-[11px]">Respuestas: -</span>
                           </div>
 
@@ -463,7 +728,7 @@ export default function Dashboard() {
 
                           {openMenuId === survey.id && (
                             <div
-                              className="absolute right-3 top-10 z-20 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                              className="absolute right-3 top-10 z-20 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <button
@@ -484,7 +749,10 @@ export default function Dashboard() {
                               >
                                 {survey.isActive ? "Desactivar" : "Publicar"}
                               </button>
-                              <button className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                              <button
+                                onClick={() => handleDuplicate(survey)}
+                                className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                              >
                                 Duplicar
                               </button>
                               <Link
@@ -493,6 +761,27 @@ export default function Dashboard() {
                               >
                                 Editar
                               </Link>
+                              <div className="border-t border-slate-100">
+                                <p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                  Mover a
+                                </p>
+                                <div className="max-h-32 overflow-y-auto py-1">
+                                  {workspaces.map((ws) => (
+                                    <button
+                                      key={ws.id}
+                                      onClick={() =>
+                                        handleMoveSurvey(survey.id as string, ws.id as string)
+                                      }
+                                      className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                                    >
+                                      <span className="truncate">{ws.name || "Sin nombre"}</span>
+                                      <span className="text-[10px] text-slate-400">
+                                        {workspaceSurveyCounts[ws.id as string] ?? 0} f.
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
                               <button
                                 onClick={() => handleDelete(survey.id as string)}
                                 className="flex w-full items-center px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
@@ -513,7 +802,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
-
-
-

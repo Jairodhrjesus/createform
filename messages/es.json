@@ -22,6 +22,7 @@
     "confirmSubmitting": "Confirmando...",
     "confirmSubmit": "Confirmar",
     "confirmBack": "Volver al login",
+    "accountVerified": "Cuenta verificada. Ya puedes iniciar sesión.",
     "codeInvalid": "Código inválido.",
     "resetSendFailed": "No se pudo enviar el código.",
     "codeFormatInvalid": "El código debe tener 6 dígitos.",
