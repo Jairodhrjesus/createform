@@ -17,6 +17,7 @@ import { useEditorTabs } from "@/hooks/useEditorTabs";
 import { useSurveyEditorData } from "@/hooks/useSurveyEditorData";
 import { useQuestionOptions } from "@/hooks/useQuestionOptions";
 import { useQuestionInspector } from "@/hooks/useQuestionInspector";
+import { Spinner } from "@radix-ui/themes";
 
 export default function SurveyEditorPage() {
   const params = useParams<{ id?: string }>();
@@ -43,7 +44,7 @@ export default function SurveyEditorPage() {
     addOption,
     deleteOption,
     updateOption,
-  } = useQuestionOptions(selectedQuestion?.id || null, selectedQuestion?.type, true);
+  } = useQuestionOptions(selectedQuestion?.id ?? null, selectedQuestion?.type ?? undefined, true);
   const { required, toggleRequired } = useQuestionInspector(selectedQuestion);
 
   const userName =
@@ -66,7 +67,7 @@ export default function SurveyEditorPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-600">
-        Loading editor...
+        <Spinner size="4" />
       </div>
     );
   }

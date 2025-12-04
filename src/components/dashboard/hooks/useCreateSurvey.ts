@@ -1,13 +1,15 @@
 import { useCallback, useState } from "react";
 import { client } from "@/utils/amplify-utils";
+import type { SurveyListItem } from "./useSurveys";
 
 type Params = {
   hasWorkspaceModel: boolean;
   resolveWorkspaceId: (fallback?: string | null) => string | null;
+  onCreated?: (survey: SurveyListItem) => void;
 };
 
 // Alta de encuestas, validando workspace requerido cuando aplica.
-export function useCreateSurvey({ hasWorkspaceModel, resolveWorkspaceId }: Params) {
+export function useCreateSurvey({ hasWorkspaceModel, resolveWorkspaceId, onCreated }: Params) {
   const [newSurveyTitle, setNewSurveyTitle] = useState("");
   const [createWorkspaceId, setCreateWorkspaceId] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export function useCreateSurvey({ hasWorkspaceModel, resolveWorkspaceId }: Param
       }
 
       setSavingSurvey(true);
-      const { errors } = await client.models.Survey.create(payload as any);
+      const { data, errors } = await client.models.Survey.create(payload as any);
       setSavingSurvey(false);
 
       if (errors) {
@@ -56,11 +58,15 @@ export function useCreateSurvey({ hasWorkspaceModel, resolveWorkspaceId }: Param
         return;
       }
 
+      if (data) {
+        onCreated?.(data as SurveyListItem);
+      }
+
       setShowCreateModal(false);
       setNewSurveyTitle("");
       setCreateError(null);
     },
-    [newSurveyTitle, hasWorkspaceModel, createWorkspaceId, resolveWorkspaceId]
+    [newSurveyTitle, hasWorkspaceModel, createWorkspaceId, resolveWorkspaceId, onCreated]
   );
 
   return {

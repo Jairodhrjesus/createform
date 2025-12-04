@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import * as Avatar from "@radix-ui/react-avatar";
+import { DropdownSelect } from "@/components/ui/DropdownSelect";
 import type { Schema } from "@/amplify/data/resource";
 import { useQuestionOptions } from "@/hooks/useQuestionOptions";
 
@@ -79,23 +80,20 @@ export default function QuestionRenderer({
 
     if (control === "dropdown") {
       return (
-        <select
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+        <DropdownSelect
           value={selectedOptionIds[0] || ""}
-          onChange={(e) => {
-            const opt = sortedOptions.find((o) => o.id === e.target.value);
+          placeholder="Selecciona una opcion"
+          options={sortedOptions.map((opt) => ({
+            value: opt.id as string,
+            label: opt.text || "",
+          }))}
+          onChange={(val) => {
+            const opt = sortedOptions.find((o) => o.id === val);
             if (opt) onAnswer(question.id as string, [opt]);
           }}
-        >
-          <option value="" disabled>
-            Selecciona una opcion
-          </option>
-          {sortedOptions.map((opt) => (
-            <option key={opt.id} value={opt.id as string}>
-              {opt.text}
-            </option>
-          ))}
-        </select>
+          className="w-full justify-between"
+          menuWidthClass="w-full"
+        />
       );
     }
 

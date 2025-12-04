@@ -6,6 +6,7 @@ import { useLocale } from "next-intl";
 import AuthGuard from "@/components/AuthGuard";
 import Navbar from "@/components/layout/Navbar";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { DropdownSelect } from "@/components/ui/DropdownSelect";
 import { client } from "@/utils/amplify-utils";
 import type { Schema } from "@/amplify/data/resource";
 import Link from "next/link";
@@ -133,14 +134,18 @@ export default function SubmissionsPage() {
                 <p className="text-sm text-slate-600">Revisa el rendimiento general y navega a los resultados detallados.</p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <select
+                <DropdownSelect
                   value={workspaceFilter}
-                  onChange={(e) => setWorkspaceFilter(e.target.value)}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm"
-                >
-                  <option value="all">Todos los workspaces</option>
-                  {workspaces.map((ws) => <option key={ws.id} value={ws.id as string}>{ws.name || "Sin nombre"}</option>)}
-                </select>
+                  onChange={(val) => setWorkspaceFilter(val as WorkspaceFilter)}
+                  options={[
+                    { value: "all", label: "Todos los workspaces" },
+                    ...workspaces.map((ws) => ({
+                      value: ws.id as string,
+                      label: ws.name || "Sin nombre",
+                    })),
+                  ]}
+                  className="min-w-[200px]"
+                />
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={onlyWithResponses} onChange={(e) => setOnlyWithResponses(e.target.checked)} />
                   Solo con respuestas

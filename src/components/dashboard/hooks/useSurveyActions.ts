@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { client } from "@/utils/amplify-utils";
 import type { WorkspaceFilter } from "../WorkspaceSidebar";
 import type { SurveyListItem } from "./useSurveys";
+import { useToast } from "@/components/providers/ToastProvider";
 
 type Params = {
   locale: string;
@@ -25,6 +26,7 @@ export function useSurveyActions({
   setOpenMenuId,
   updateSurveyLocally,
 }: Params) {
+  const { toast } = useToast();
   const copyToClipboard = useCallback(
     async (text: string) => {
       try {
@@ -32,9 +34,14 @@ export function useSurveyActions({
       } catch (err) {
         console.error("No se pudo copiar:", err);
         window.prompt(t("actions.manualCopy"), text);
+        toast({
+          title: t("actions.copy"),
+          description: t("errors.copyFailed"),
+          variant: "error",
+        });
       }
     },
-    [t]
+    [t, toast]
   );
 
   const handleShare = useCallback(
@@ -46,16 +53,26 @@ export function useSurveyActions({
       const link = `${origin}/${locale}/embed/${surveyId}`;
       copyToClipboard(link);
       setOpenMenuId(null);
+      toast({
+        title: t("actions.share"),
+        description: t("actions.toastLinkCopied"),
+        variant: "success",
+      });
     },
-    [locale, copyToClipboard, setOpenMenuId]
+    [locale, copyToClipboard, setOpenMenuId, t, toast]
   );
 
   const handleCopyId = useCallback(
     (surveyId: string) => {
       copyToClipboard(surveyId);
       setOpenMenuId(null);
+      toast({
+        title: t("actions.copyId"),
+        description: t("actions.toastIdCopied"),
+        variant: "success",
+      });
     },
-    [copyToClipboard, setOpenMenuId]
+    [copyToClipboard, setOpenMenuId, t, toast]
   );
 
   const handleDelete = useCallback(
@@ -104,14 +121,23 @@ export function useSurveyActions({
           payload.workspaceId = targetWorkspaceId || undefined;
         }
         await client.models.Survey.create(payload as any);
+        toast({
+          title: t("actions.duplicate"),
+          description: t("actions.toastDuplicated"),
+          variant: "success",
+        });
       } catch (err) {
         console.error("Error duplicando encuesta:", err);
-        alert(t("errors.duplicateSurvey"));
+        toast({
+          title: t("actions.duplicate"),
+          description: t("errors.duplicateSurvey"),
+          variant: "error",
+        });
       } finally {
         setOpenMenuId(null);
       }
     },
-    [resolveWorkspaceId, hasWorkspaceModel, t, setOpenMenuId]
+    [resolveWorkspaceId, hasWorkspaceModel, t, setOpenMenuId, toast]
   );
 
   const handleMoveSurvey = useCallback(

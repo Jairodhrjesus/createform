@@ -103,7 +103,23 @@
       "sortLabel": "Ordenar por",
       "sortCreated": "Fecha de creación",
       "sortUpdated": "Última actualización",
-      "sortAlpha": "Alfabético"
+      "sortAlpha": "Alfabético",
+      "workspaceActions": "Opciones del workspace",
+      "deleteWorkspace": "Eliminar workspace",
+      "deletingWorkspace": "Eliminando workspace...",
+      "confirmDeleteWorkspace": "¿Eliminar el workspace \"{workspace}\"?",
+      "deleteModal": {
+        "title": "¿Eliminar este workspace?",
+        "warning": "Perderás todos los formularios y respuestas guardadas en:",
+        "subtext": "No podemos recuperarlos: se eliminarán para siempre.",
+        "inputLabel": "Nombre del workspace",
+        "inputHelp": "Escribe el nombre del workspace para confirmar.",
+        "confirm": "Sí, eliminarlo",
+        "cancel": "Cancelar",
+        "nameMismatch": "Escribe exactamente el nombre del workspace para confirmar.",
+        "irreversible": "No podemos recuperarlos: se eliminarán para siempre."
+      },
+      "toastWorkspaceDeleted": "Workspace eliminado correctamente."
     },
     "empty": {
       "title": "Aun no tienes formularios",
@@ -126,6 +142,7 @@
       "share": "Compartir",
       "copyLink": "Copiar link",
       "copyId": "Copiar ID",
+      "copy": "Copiar",
       "deactivate": "Desactivar",
       "publish": "Publicar",
       "duplicate": "Duplicar",
@@ -134,7 +151,10 @@
       "moveTo": "Mover a",
       "delete": "Borrar",
       "confirmDelete": "Seguro que quieres borrarla?",
-      "manualCopy": "Copia manualmente:"
+      "manualCopy": "Copia manualmente:",
+      "toastLinkCopied": "Enlace copiado al portapapeles.",
+      "toastIdCopied": "ID copiado al portapapeles.",
+      "toastDuplicated": "Formulario duplicado como borrador."
     },
     "card": {
       "updated": "Actualizado: {date}",
@@ -150,7 +170,9 @@
       "surveyCreate": "Error al crear la encuesta. Intenta de nuevo.",
       "toggleActive": "No se pudo cambiar el estado. Intenta de nuevo.",
       "duplicateSurvey": "No se pudo duplicar. Intenta de nuevo.",
-      "moveSurvey": "No se pudo mover la encuesta. Intenta de nuevo."
+      "moveSurvey": "No se pudo mover la encuesta. Intenta de nuevo.",
+      "workspaceDelete": "No se pudo eliminar el workspace.",
+      "copyFailed": "No se pudo copiar. Intenta nuevamente."
     },
     "modals": {
       "common": {
@@ -177,5 +199,25 @@
         "descriptionPlaceholder": "Para agrupar formularios relacionados..."
       }
     }
+  },
+  "Settings": {
+    "profile_title": "Configuración de perfil",
+    "profile_subtitle": "Actualiza tu información personal y preferencias de seguridad.",
+    "tab_info": "Perfil",
+    "tab_security": "Seguridad",
+    "section_basic_info": "Información básica",
+    "section_basic_info_desc": "Mantén tus datos de perfil al día.",
+    "field_name": "Nombre para mostrar",
+    "field_name_placeholder": "Tu nombre",
+    "field_email": "Correo",
+    "field_email_warning": "Cambiar tu correo puede requerir verificación.",
+    "section_security_title": "Contraseña",
+    "section_security_desc": "Usa una contraseña robusta para proteger tu cuenta.",
+    "field_old_password": "Contraseña actual",
+    "field_new_password": "Nueva contraseña",
+    "field_new_password_req": "Al menos 8 caracteres, incluye números y símbolos.",
+    "loading": "Guardando...",
+    "button_update": "Actualizar",
+    "button_change_password": "Cambiar contraseña"
   }
 }

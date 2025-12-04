@@ -1,6 +1,7 @@
 "use client";
 
 import type { Schema } from "@/amplify/data/resource";
+import { DropdownSelect } from "@/components/ui/DropdownSelect";
 
 type OptionType = Schema["Option"]["type"];
 
@@ -11,18 +12,18 @@ interface DropdownPreviewProps {
 export function DropdownPreview({ options }: DropdownPreviewProps) {
   return (
     <div className="space-y-2">
-      <select
+      <DropdownSelect
+        value=""
+        onChange={() => {}}
+        placeholder="Selecciona..."
         disabled
-        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-700"
-        defaultValue=""
-      >
-        <option value="" disabled>
-          Selecciona...
-        </option>
-        {options.map((opt, idx) => (
-          <option key={`${opt.id}-${idx}`}>{opt.text}</option>
-        ))}
-      </select>
+        options={options.map((opt, idx) => ({
+          value: String(opt.id || idx),
+          label: opt.text || "",
+        }))}
+        className="w-full justify-between"
+        menuWidthClass="w-full"
+      />
       {!options.length && (
         <p className="text-sm text-slate-500">Agrega opciones para esta pregunta.</p>
       )}

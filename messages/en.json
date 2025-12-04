@@ -97,7 +97,23 @@
       "sortLabel": "Sort by",
       "sortCreated": "Created",
       "sortUpdated": "Last update",
-      "sortAlpha": "Alphabetical"
+      "sortAlpha": "Alphabetical",
+      "workspaceActions": "Workspace options",
+      "deleteWorkspace": "Delete workspace",
+      "deletingWorkspace": "Deleting workspace...",
+      "confirmDeleteWorkspace": "Delete workspace \"{workspace}\"?",
+      "deleteModal": {
+        "title": "Delete this workspace?",
+        "warning": "You’ll lose all typeforms and responses collected in:",
+        "subtext": "We can’t recover them—they’ll be gone forever.",
+        "inputLabel": "Workspace name",
+        "inputHelp": "Enter the workspace name to confirm.",
+        "confirm": "Yes, delete it",
+        "cancel": "Cancel",
+        "nameMismatch": "Enter the exact workspace name to confirm.",
+        "irreversible": "We can’t recover them—they’ll be gone forever."
+      },
+      "toastWorkspaceDeleted": "Workspace deleted successfully."
     },
     "empty": {
       "title": "You don't have forms yet",
@@ -120,6 +136,7 @@
       "share": "Share",
       "copyLink": "Copy link",
       "copyId": "Copy ID",
+      "copy": "Copy",
       "deactivate": "Deactivate",
       "publish": "Publish",
       "duplicate": "Duplicate",
@@ -128,7 +145,10 @@
       "moveTo": "Move to",
       "delete": "Delete",
       "confirmDelete": "Delete this form?",
-      "manualCopy": "Copy manually:"
+      "manualCopy": "Copy manually:",
+      "toastLinkCopied": "Link copied to clipboard.",
+      "toastIdCopied": "ID copied to clipboard.",
+      "toastDuplicated": "Form duplicated as draft."
     },
     "card": {
       "updated": "Updated: {date}",
@@ -144,7 +164,9 @@
       "surveyCreate": "Could not create the form. Try again.",
       "toggleActive": "Could not change status. Try again.",
       "duplicateSurvey": "Could not duplicate. Try again.",
-      "moveSurvey": "Could not move the form. Try again."
+      "moveSurvey": "Could not move the form. Try again.",
+      "workspaceDelete": "Could not delete workspace.",
+      "copyFailed": "Could not copy. Please try again."
     },
     "modals": {
       "common": {
@@ -171,5 +193,25 @@
         "descriptionPlaceholder": "Group related forms..."
       }
     }
+  },
+  "Settings": {
+    "profile_title": "Profile settings",
+    "profile_subtitle": "Update your personal information and security preferences.",
+    "tab_info": "Profile",
+    "tab_security": "Security",
+    "section_basic_info": "Basic information",
+    "section_basic_info_desc": "Keep your profile data up to date.",
+    "field_name": "Display name",
+    "field_name_placeholder": "Your name",
+    "field_email": "Email",
+    "field_email_warning": "Changing your email may require verification.",
+    "section_security_title": "Password",
+    "section_security_desc": "Use a strong password to keep your account secure.",
+    "field_old_password": "Current password",
+    "field_new_password": "New password",
+    "field_new_password_req": "At least 8 characters, include numbers and symbols.",
+    "loading": "Saving...",
+    "button_update": "Update",
+    "button_change_password": "Change password"
   }
 }

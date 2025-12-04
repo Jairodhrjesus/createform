@@ -3,6 +3,7 @@ import { useMemo, useState, useCallback } from "react";
 import { useLocale } from "next-intl";
 import type { Schema } from "@/amplify/data/resource";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { DropdownSelect } from "@/components/ui/DropdownSelect";
 
 type SubmissionType = Schema["Submission"]["type"];
 type SurveyType = Schema["Survey"]["type"];
@@ -170,16 +171,17 @@ export default function SurveyResultsPanel({
             <p className="text-xs text-slate-500">Filtra y busca entre las respuestas individuales.</p>
           </div>
           <div className="flex items-center gap-3">
-            <select
+            <DropdownSelect
               value={outcomeFilter}
-              onChange={(e) => setOutcomeFilter(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
+              onChange={(val) => setOutcomeFilter(val)}
+              placeholder="Todos los resultados"
+              options={allOutcomes.map((outcome) => ({
+                value: outcome,
+                label: outcome === "all" ? "Todos los resultados" : outcome,
+              }))}
               disabled={allOutcomes.length <= 2}
-            >
-              {allOutcomes.map(outcome => (
-                <option key={outcome} value={outcome}>{outcome === 'all' ? 'Todos los resultados' : outcome}</option>
-              ))}
-            </select>
+              className="min-w-[180px]"
+            />
             <input
               type="search"
               placeholder="Buscar en respuestas..."

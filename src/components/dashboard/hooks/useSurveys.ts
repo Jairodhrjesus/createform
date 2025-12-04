@@ -25,6 +25,7 @@ type Params = {
 export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortKey }: Params) {
   const [surveys, setSurveys] = useState<SurveyListItem[]>([]);
   const [submissions, setSubmissions] = useState<{ surveyId: string }[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const surveySub = (client.models.Survey as any).observeQuery({
@@ -38,7 +39,10 @@ export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortK
         "createdAt",
       ],
     }).subscribe({
-      next: ({ items }: any) => setSurveys(items as SurveyListItem[]),
+      next: ({ items }: any) => {
+        setSurveys(items as SurveyListItem[]);
+        setLoading(false);
+      },
     });
 
     const submissionSub = client.models.Submission.observeQuery({
@@ -121,11 +125,23 @@ export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortK
     []
   );
 
+  const addSurveyLocally = useCallback((survey: SurveyListItem) => {
+    setSurveys((prev) => {
+      const exists = prev.find((s) => s.id === survey.id);
+      if (exists) {
+        return prev.map((s) => (s.id === survey.id ? { ...s, ...survey } : s));
+      }
+      return [survey, ...prev];
+    });
+  }, []);
+
   return {
     surveys: surveysWithCounts,
     filteredSurveys,
     workspaceSurveyCounts,
     hasUnassigned,
     updateSurveyLocally,
+    addSurveyLocally,
+    loading,
   };
 }

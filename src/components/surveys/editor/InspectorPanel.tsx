@@ -1,6 +1,7 @@
 "use client";
 
 import type { Schema } from "@/amplify/data/resource";
+import { DropdownSelect } from "@/components/ui/DropdownSelect";
 
 type QuestionType = Schema["Question"]["type"];
 
@@ -44,18 +45,14 @@ export function InspectorPanel({
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Tipo de pregunta
           </label>
-          <select
-            disabled={!question}
+          <DropdownSelect
             value={question?.type || "short_text"}
-            onChange={(e) => onChangeType?.(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100 disabled:opacity-60"
-          >
-            {QUESTION_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => onChangeType?.(val)}
+            options={QUESTION_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+            disabled={!question}
+            className="w-full justify-between"
+            menuWidthClass="w-full"
+          />
           <label className="mt-3 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <div className="flex flex-col">
               <span>Obligatoria</span>
