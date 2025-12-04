@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import type { Schema } from "@/amplify/data/resource";
 import OptionList, { supportsOptions } from "./OptionList";
+import LeadCapturePanel from "./LeadCapturePanel";
 import ShortTextPreview from "./question-types/ShortTextPreview";
 import ParagraphPreview from "./question-types/ParagraphPreview";
 import RadioPreview from "./question-types/RadioPreview";
@@ -18,23 +19,35 @@ type OptionType = Schema["Option"]["type"];
 
 interface QuestionCanvasProps {
   question: QuestionType | null;
+  ending?: any;
+  survey?: Schema["Survey"]["type"];
+  surveyId?: string;
   options: OptionType[];
   optionsLoading?: boolean;
-  onChangeText: (text: string) => void;
+  onChangeText: (text: string, persist?: boolean) => void;
   onAddOption: (text: string, score?: number) => Promise<void>;
   onDeleteOption: (id: string) => Promise<void>;
   onUpdateOption?: (id: string, updates: Partial<OptionType>) => Promise<void>;
   onDeleteQuestion?: (id: string) => void;
+  onReorderOption?: (ids: string[]) => void;
+  onUpdateEnding?: (updates: Record<string, any>) => void;
+  onDeleteEnding?: () => void;
 }
 
 export function QuestionCanvas({
   question,
+  ending,
+  survey,
+  surveyId,
   options,
   optionsLoading,
   onChangeText,
   onAddOption,
   onDeleteOption,
   onUpdateOption,
+  onReorderOption,
+  onUpdateEnding,
+  onDeleteEnding,
 }: QuestionCanvasProps) {
   const [localText, setLocalText] = useState(question?.text || "");
 
@@ -42,13 +55,107 @@ export function QuestionCanvas({
     setLocalText(question?.text || "");
   }, [question?.text]);
 
-  if (!question) {
+  if (!question && !ending) {
     return (
       <div className="flex h-[640px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white/70 text-center shadow-inner">
-        <p className="text-base font-semibold text-slate-800">No question selected</p>
+        <p className="text-base font-semibold text-slate-800">Nada seleccionado</p>
         <p className="mt-1 text-sm text-slate-500">
-          Select a block on the left rail to preview it here.
+          Selecciona una pregunta o un ending en el rail izquierdo.
         </p>
+      </div>
+    );
+  }
+
+  if (!question && ending) {
+    if (ending.type === "lead_capture") {
+      if (!survey) return null;
+      return (
+        <LeadCapturePanel survey={survey} surveyId={surveyId || ""} variant="embedded" />
+      );
+    }
+    return (
+      <div className="relative overflow-hidden rounded-3xl border border-amber-200 bg-white shadow-sm">
+        <div className="absolute inset-x-0 top-0 h-2 rounded-t-3xl bg-amber-50" />
+        <div className="p-6 sm:p-10 lg:p-12">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                Ending / Outcome
+              </p>
+              <h3 className="text-xl font-semibold text-slate-900">{ending.title || "End Screen"}</h3>
+              <p className="text-sm text-slate-600">
+                Define el rango de puntaje y la accion final (pantalla, redirect, etc.).
+              </p>
+            </div>
+            {onDeleteEnding && (
+              <button
+                type="button"
+                onClick={onDeleteEnding}
+                className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+              >
+                Eliminar ending
+              </button>
+            )}
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <div className="space-y-3">
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Titulo
+              </label>
+              <input
+                type="text"
+                value={ending.title || ""}
+                onChange={(e) => onUpdateEnding?.({ title: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              />
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Descripcion
+              </label>
+              <textarea
+                value={ending.description || ""}
+                onChange={(e) => onUpdateEnding?.({ description: e.target.value })}
+                rows={3}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              />
+            </div>
+            <div className="space-y-3">
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Rango de puntaje
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  value={ending.minScore ?? 0}
+                  onChange={(e) =>
+                    onUpdateEnding?.({ minScore: parseInt(e.target.value || "0", 10) || 0 })
+                  }
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                  placeholder="Min"
+                />
+                <input
+                  type="number"
+                  value={ending.maxScore ?? 0}
+                  onChange={(e) =>
+                    onUpdateEnding?.({ maxScore: parseInt(e.target.value || "0", 10) || 0 })
+                  }
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                  placeholder="Max"
+                />
+              </div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Redirect URL (opcional)
+              </label>
+              <input
+                type="url"
+                value={ending.redirectUrl || ""}
+                onChange={(e) => onUpdateEnding?.({ redirectUrl: e.target.value })}
+                placeholder="https://tu-landing.com"
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-100"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -122,8 +229,12 @@ export function QuestionCanvas({
             </label>
             <input
               value={localText}
-              onChange={(e) => setLocalText(e.target.value)}
-              onBlur={() => onChangeText(localText)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setLocalText(value);
+                onChangeText(value, false);
+              }}
+              onBlur={() => onChangeText(localText, true)}
               placeholder="Tu pregunta aqui. Usa @ para referencias."
               className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-lg font-semibold text-slate-800 shadow-inner focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
             />
@@ -161,6 +272,7 @@ export function QuestionCanvas({
                 options={options}
                 loading={optionsLoading}
                 onUpdate={onUpdateOption}
+                onAddScale={onAddOption}
               />
             ) : question.type === "rating" ? (
               <RatingConfigurator
@@ -177,6 +289,7 @@ export function QuestionCanvas({
                 onAdd={onAddOption}
                 onDelete={onDeleteOption}
                 onUpdate={onUpdateOption}
+                onReorder={onReorderOption}
                 questionType={question.type || undefined}
               />
             ) : null}
@@ -193,10 +306,12 @@ function LinearScaleConfigurator({
   options,
   loading,
   onUpdate,
+  onAddScale,
 }: {
   options: OptionType[];
   loading?: boolean;
   onUpdate?: (id: string, updates: Partial<OptionType>) => Promise<void>;
+  onAddScale?: (text: string, score?: number) => Promise<void>;
 }) {
   const parseIndex = (value?: string | null) => {
     const num = Number(value);
@@ -239,7 +354,7 @@ function LinearScaleConfigurator({
       </div>
       {loading ? (
         <p className="text-xs text-slate-500">Cargando escala...</p>
-      ) : (
+      ) : scales.length ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {scales.map((scale) => (
             <div
@@ -265,6 +380,26 @@ function LinearScaleConfigurator({
               />
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <p>No hay opciones de escala creadas.</p>
+          {onAddScale && (
+            <button
+              type="button"
+              onClick={async () => {
+                const createDefaultScale = async () => {
+                  for (let i = 1; i <= 10; i++) {
+                    await onAddScale(String(i), 1);
+                  }
+                };
+                await createDefaultScale();
+              }}
+              className="inline-flex w-fit items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-slate-800"
+            >
+              Agregar escala 1-10
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -388,3 +523,14 @@ function RatingConfigurator({
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+

@@ -11,7 +11,8 @@ interface OptionListProps {
   loading?: boolean;
   onAdd: (text: string, score?: number) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onUpdate?: (id: string, updates: Partial<OptionType>) => Promise<void>;
+  onUpdate?: (id: string, updates: Partial<OptionType>, persist?: boolean) => Promise<void>;
+  onReorder?: (ids: string[]) => void;
   questionType?: string;
 }
 
@@ -96,11 +97,16 @@ export function OptionList({
   onAdd,
   onDelete,
   onUpdate,
+  onReorder,
   questionType,
 }: OptionListProps) {
   const [newText, setNewText] = useState("");
   const [newScore, setNewScore] = useState(DEFAULT_SCORE[questionType || ""] || "0");
   const [saving, setSaving] = useState(false);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [localTexts, setLocalTexts] = useState<Record<string, string>>({});
+  const [localScores, setLocalScores] = useState<Record<string, number>>({});
 
   const hasOptions = useMemo(() => supportsOptions(questionType), [questionType]);
 
@@ -108,6 +114,16 @@ export function OptionList({
     setNewText("");
     setNewScore(DEFAULT_SCORE[questionType || ""] || "0");
   }, [questionType]);
+
+  // Sync local inputs when options change (e.g., external updates)
+  useEffect(() => {
+    setLocalTexts(
+      Object.fromEntries(options.map((opt) => [opt.id as string, opt.text || ""]))
+    );
+    setLocalScores(
+      Object.fromEntries(options.map((opt) => [opt.id as string, opt.score ?? 0]))
+    );
+  }, [options]);
 
   if (!hasOptions) return null;
 
@@ -184,16 +200,72 @@ export function OptionList({
               Aun no hay opciones para esta pregunta.
             </div>
           )}
-          {options.map((opt) => (
+          {options.map((opt, idx) => (
             <div
               key={opt.id}
-              className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+              className={[
+                "flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:flex-row sm:items-center sm:justify-between",
+                "transition-transform duration-150 ease-out",
+                dragOverId === opt.id ? "border-blue-200 bg-blue-50/40 translate-y-0.5" : "",
+                draggingId === opt.id ? "opacity-80 scale-[0.99]" : "",
+              ].join(" ")}
+              draggable={Boolean(onReorder)}
+              onDragStart={(e) => {
+                if (!onReorder) return;
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", opt.id as string);
+                setDraggingId(opt.id as string);
+              }}
+              onDragOver={(e) => {
+                if (!onReorder) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragOverId(opt.id as string);
+              }}
+              onDragLeave={() => setDragOverId(null)}
+              onDrop={(e) => {
+                if (!onReorder) return;
+                e.preventDefault();
+                const draggedId = e.dataTransfer.getData("text/plain");
+                if (!draggedId || draggedId === opt.id) return;
+                const currentOrder = options.map((o) => o.id as string);
+                const from = currentOrder.indexOf(draggedId);
+                const to = currentOrder.indexOf(opt.id as string);
+                if (from === -1 || to === -1 || from === to) {
+                  setDragOverId(null);
+                  setDraggingId(null);
+                  return;
+                }
+                const nextOrder = [...currentOrder];
+                const [moved] = nextOrder.splice(from, 1);
+                nextOrder.splice(to, 0, moved);
+                onReorder?.(nextOrder);
+                setDragOverId(null);
+                setDraggingId(null);
+              }}
+              onDragEnd={() => {
+                setDragOverId(null);
+                setDraggingId(null);
+              }}
             >
               <div className="flex items-center gap-3">
                 {renderControl(control)}
                 <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-slate-800">{opt.text}</span>
-                  <span className="text-xs text-slate-500">{opt.score ?? 0} pts</span>
+                  <input
+                    value={localTexts[opt.id as string] ?? ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setLocalTexts((prev) => ({ ...prev, [opt.id as string]: value }));
+                      onUpdate?.(opt.id as string, { text: value }, false);
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value;
+                      onUpdate?.(opt.id as string, { text: value }, true);
+                    }}
+                    className="w-full min-w-[180px] rounded-lg border border-slate-200 px-2 py-1 text-sm font-semibold text-slate-800 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200"
+                    placeholder='Texto de opcion (ej: "Opcion A")'
+                  />
+                  <span className="text-xs text-slate-500">{localScores[opt.id as string] ?? 0} pts</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -202,11 +274,15 @@ export function OptionList({
                   <input
                     type="number"
                     className="w-16 rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-800 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200"
-                    defaultValue={opt.score ?? 0}
+                    value={localScores[opt.id as string] ?? 0}
+                    onChange={(e) => {
+                      const nextScore = parseInt(e.target.value || "0", 10) || 0;
+                      setLocalScores((prev) => ({ ...prev, [opt.id as string]: nextScore }));
+                      onUpdate?.(opt.id as string, { score: nextScore }, false);
+                    }}
                     onBlur={(e) => {
                       const nextScore = parseInt(e.target.value || "0", 10) || 0;
-                      if (nextScore === (opt.score || 0)) return;
-                      onUpdate?.(opt.id as string, { score: nextScore });
+                      onUpdate?.(opt.id as string, { score: nextScore }, true);
                     }}
                   />
                 </label>

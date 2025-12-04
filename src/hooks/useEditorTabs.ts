@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export type EditorTab = "content" | "workflow" | "connect";
+export type EditorTab = "content";
 
 export function useEditorTabs(initial: EditorTab = "content") {
   const [activeTab, setActiveTab] = useState<EditorTab>(initial);

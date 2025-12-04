@@ -148,7 +148,16 @@
       "manualCopy": "Copy manually:",
       "toastLinkCopied": "Link copied to clipboard.",
       "toastIdCopied": "ID copied to clipboard.",
-      "toastDuplicated": "Form duplicated as draft."
+      "toastDuplicated": "Form duplicated as draft.",
+      "toastDeleted": "Form deleted.",
+      "deleteModal": {
+        "title": "Delete this form?",
+        "description": "This action can't be undone.",
+        "warning": "We'll remove the form and its data permanently.",
+        "confirm": "Yes, delete",
+        "cancel": "Cancel",
+        "deleting": "Deleting..."
+      }
     },
     "card": {
       "updated": "Updated: {date}",
@@ -166,6 +175,7 @@
       "duplicateSurvey": "Could not duplicate. Try again.",
       "moveSurvey": "Could not move the form. Try again.",
       "workspaceDelete": "Could not delete workspace.",
+      "deleteSurvey": "Could not delete the form. Try again.",
       "copyFailed": "Could not copy. Please try again."
     },
     "modals": {

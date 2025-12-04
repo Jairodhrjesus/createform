@@ -56,8 +56,10 @@ export default function QuestionRenderer({
   selectedOptionIds,
   displayOrder,
 }: QuestionRendererProps) {
-  const { options, loading } = useQuestionOptions(question.id as string, question.type);
-  const type = question.type || "single_choice";
+  const questionId = question.id ?? "";
+  const questionType = question.type ?? undefined;
+  const { options, loading } = useQuestionOptions(questionId || null, questionType);
+  const type = questionType ?? "single_choice";
 
   const sortedOptions = useMemo(() => sortOptions(options), [options]);
   const control = useMemo<ControlKind>(() => {
@@ -89,7 +91,7 @@ export default function QuestionRenderer({
           }))}
           onChange={(val) => {
             const opt = sortedOptions.find((o) => o.id === val);
-            if (opt) onAnswer(question.id as string, [opt]);
+            if (opt) onAnswer(questionId, [opt]);
           }}
           className="w-full justify-between"
           menuWidthClass="w-full"
@@ -115,7 +117,7 @@ export default function QuestionRenderer({
             >
               <input
                 type={control === "checkbox" ? "checkbox" : "radio"}
-                name={`question-${question.id}`}
+                name={`question-${questionId || "unknown"}`}
                 value={option.id}
                 checked={isChecked}
                 onChange={() => {
@@ -127,9 +129,9 @@ export default function QuestionRenderer({
                       : sortedOptions
                           .filter((o) => selectedSet.has(o.id as string))
                           .concat(option);
-                    onAnswer(question.id as string, nextOptions);
+                    onAnswer(questionId, nextOptions);
                   } else {
-                    onAnswer(question.id as string, [option]);
+                    onAnswer(questionId, [option]);
                   }
                 }}
                 className="h-4 w-4 text-blue-600"
@@ -211,9 +213,7 @@ export default function QuestionRenderer({
               <div key={opt.id} className="flex flex-col items-center gap-1">
                 <button
                   type="button"
-                  onClick={() =>
-                    onAnswer(question.id as string, isSelected ? [] : [opt])
-                  }
+                  onClick={() => onAnswer(questionId, isSelected ? [] : [opt])}
                   className={`flex h-10 w-10 items-center justify-center rounded-full border text-sm font-semibold transition ${
                     isSelected
                       ? "border-blue-500 bg-blue-50 text-blue-700"
@@ -252,9 +252,9 @@ export default function QuestionRenderer({
             const isActive = selectedIndex >= 0 ? idx <= selectedIndex : false;
             const handleClick = () => {
               if (selectedIndex === idx) {
-                onAnswer(question.id as string, []);
+                onAnswer(questionId, []);
               } else {
-                onAnswer(question.id as string, [opt]);
+                onAnswer(questionId, [opt]);
               }
             };
             return (
@@ -285,7 +285,7 @@ export default function QuestionRenderer({
       <input
         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
         placeholder="Tu respuesta..."
-        onBlur={(e) => onAnswer(question.id as string, null, e.target.value)}
+        onBlur={(e) => onAnswer(questionId, null, e.target.value)}
       />
     );
   } else if (control === "textarea") {
@@ -294,7 +294,7 @@ export default function QuestionRenderer({
         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
         rows={3}
         placeholder="Escribe tu respuesta..."
-        onBlur={(e) => onAnswer(question.id as string, null, e.target.value)}
+        onBlur={(e) => onAnswer(questionId, null, e.target.value)}
       />
     );
   } else if (control === "linear") {

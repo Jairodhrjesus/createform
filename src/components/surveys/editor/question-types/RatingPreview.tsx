@@ -52,8 +52,8 @@ export function RatingPreview({
         <span className="text-xs font-semibold text-slate-500">{scoreLabel}</span>
       </div>
       <div className="flex items-center gap-1">
-        {stars.map((star) => (
-          <div key={star.id || star.text} className="flex flex-col items-center gap-1">
+        {stars.map((star, idx) => (
+          <div key={`${star.id || star.text || "star"}-${idx}`} className="flex flex-col items-center gap-1">
             <StarIcon filled />
             <span className="text-[11px] font-medium text-slate-500">
               {(star.score ?? defaultScore ?? 0) || 0} pts

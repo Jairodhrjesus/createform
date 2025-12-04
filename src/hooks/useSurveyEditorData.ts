@@ -14,15 +14,22 @@ interface UseSurveyEditorData {
   selectedQuestionId: string | null;
   selectedQuestion: QuestionType | null;
   selectQuestion: (id: string) => void;
-  addQuestion: (text: string) => Promise<void>;
+  addQuestion: (text: string, type?: string) => Promise<QuestionType | null>;
   deleteQuestion: (id: string) => Promise<void>;
   refreshSurvey: () => Promise<void>;
-  updateQuestionText: (id: string, text: string) => Promise<void>;
+  updateQuestionText: (id: string, text: string, persist?: boolean) => Promise<void>;
   updateQuestionType: (id: string, type: string) => Promise<void>;
   reorderQuestion: (id: string, targetIndex: number) => Promise<void>;
 }
 
-export function useSurveyEditorData(surveyId: string): UseSurveyEditorData {
+type EditorDataOptions = {
+  autoSelect?: boolean;
+};
+
+export function useSurveyEditorData(
+  surveyId: string,
+  { autoSelect = true }: EditorDataOptions = {}
+): UseSurveyEditorData {
   const [survey, setSurvey] = useState<SurveyType | null>(null);
   const [questions, setQuestions] = useState<QuestionType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +69,9 @@ export function useSurveyEditorData(surveyId: string): UseSurveyEditorData {
       setSelectedQuestionId(null);
       return;
     }
+    if (!autoSelect) {
+      return;
+    }
     if (!selectedQuestionId) {
       setSelectedQuestionId(questions[0].id);
     } else {
@@ -70,7 +80,7 @@ export function useSurveyEditorData(surveyId: string): UseSurveyEditorData {
         setSelectedQuestionId(questions[0].id);
       }
     }
-  }, [questions, selectedQuestionId]);
+  }, [questions, selectedQuestionId, autoSelect]);
 
   const selectedQuestion = useMemo(() => {
     if (!selectedQuestionId) return null;
@@ -82,8 +92,8 @@ export function useSurveyEditorData(surveyId: string): UseSurveyEditorData {
   }, []);
 
   const addQuestion = useCallback(
-    async (text: string) => {
-      if (!text.trim() || !surveyId) return;
+    async (text: string, type?: string) => {
+      if (!text.trim() || !surveyId) return null;
       const nextOrder =
         questions.length === 0
           ? 1
@@ -93,6 +103,7 @@ export function useSurveyEditorData(surveyId: string): UseSurveyEditorData {
       const { data } = await client.models.Question.create({
         surveyId,
         text,
+        type,
         order: nextOrder,
       } as unknown as Schema["Question"]["createType"]);
 
@@ -106,7 +117,9 @@ export function useSurveyEditorData(surveyId: string): UseSurveyEditorData {
           })
         );
         setSelectedQuestionId(data.id);
+        return data;
       }
+      return null;
     },
     [questions.length, surveyId]
   );
@@ -124,15 +137,20 @@ export function useSurveyEditorData(surveyId: string): UseSurveyEditorData {
   );
 
   const updateQuestionText = useCallback(
-    async (id: string, text: string) => {
-      if (!id || !text.trim()) return;
-      await client.models.Question.update({
-        id,
-        text,
-      } as unknown as Schema["Question"]["updateType"]);
+    async (id: string, text: string, persist: boolean = false) => {
+      if (!id) return;
 
-      setQuestions((prev) =>
-        prev.map((q) => (q.id === id ? { ...q, text } : q))
+      // Always update local state so UI reflects the latest keystroke, even if empty.
+      setQuestions((prev) => prev.map((q) => (q.id === id ? { ...q, text } : q)));
+
+      // Skip persistence if empty to avoid saving blank questions.
+      if (!persist || !text.trim()) return;
+
+      await client.models.Question.update(
+        {
+          id,
+          text,
+        } as unknown as Schema["Question"]["updateType"]
       );
     },
     []

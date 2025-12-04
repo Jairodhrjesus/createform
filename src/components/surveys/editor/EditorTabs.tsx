@@ -7,11 +7,7 @@ interface EditorTabsProps {
   onChange: (tab: EditorTab) => void;
 }
 
-const tabs: { id: EditorTab; label: string }[] = [
-  { id: "content", label: "Content" },
-  { id: "workflow", label: "Workflow" },
-  { id: "connect", label: "Connect" },
-];
+const tabs: { id: EditorTab; label: string }[] = [{ id: "content", label: "Content" }];
 
 export function EditorTabs({ activeTab, onChange }: EditorTabsProps) {
   return (

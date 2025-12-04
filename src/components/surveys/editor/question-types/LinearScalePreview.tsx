@@ -22,17 +22,15 @@ export function LinearScalePreview({
         if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
         return (a.text || "").localeCompare(b.text || "");
       })
-    : Array.from({ length: steps }, (_, idx) => ({
-        id: `scale-${idx + 1}`,
-        text: String(idx + 1),
-        score: defaultScore,
-      }))) as Array<Pick<OptionType, "id" | "text" | "score">>;
+    : []) as Array<Pick<OptionType, "id" | "text" | "score">>;
 
   const scores = scale.map((s) => s.score ?? defaultScore ?? 0);
-  const allEqual = scores.every((v) => v === scores[0]);
-  const scoreLabel = allEqual
-    ? `${scores[0] ?? 0} pt${(scores[0] ?? 0) === 1 ? "" : "s"} c/u`
-    : "Puntaje por escala definido abajo";
+  const allEqual = scores.length ? scores.every((v) => v === scores[0]) : true;
+  const scoreLabel = scale.length
+    ? allEqual
+      ? `${scores[0] ?? 0} pt${(scores[0] ?? 0) === 1 ? "" : "s"} c/u`
+      : "Puntaje por escala definido abajo"
+    : "Agrega opciones para definir la escala";
 
   return (
     <div className="space-y-3">
@@ -41,20 +39,26 @@ export function LinearScalePreview({
         <span className="text-xs font-semibold text-slate-500">{scoreLabel}</span>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        {scale.map((opt) => (
-          <div key={opt.id || opt.text} className="flex flex-col items-center gap-1">
-            <button
-              type="button"
-              disabled
-              className="h-9 w-9 rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700"
-            >
-              {opt.text}
-            </button>
-            <span className="text-[11px] font-medium text-slate-500">
-              {(opt.score ?? defaultScore ?? 0) || 0} pts
-            </span>
+        {scale.length ? (
+          scale.map((opt) => (
+            <div key={opt.id || opt.text} className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                disabled
+                className="h-9 w-9 rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700"
+              >
+                {opt.text}
+              </button>
+              <span className="text-[11px] font-medium text-slate-500">
+                {(opt.score ?? defaultScore ?? 0) || 0} pts
+              </span>
+            </div>
+          ))
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            Aun no agregas opciones de escala. Usa el boton de “Agregar escala 1-10” para crearla.
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

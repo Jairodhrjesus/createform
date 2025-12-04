@@ -135,6 +135,10 @@ export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortK
     });
   }, []);
 
+  const removeSurveyLocally = useCallback((id: string) => {
+    setSurveys((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
   return {
     surveys: surveysWithCounts,
     filteredSurveys,
@@ -142,6 +146,7 @@ export function useSurveys({ activeWorkspaceId, hasWorkspaceModel, search, sortK
     hasUnassigned,
     updateSurveyLocally,
     addSurveyLocally,
+    removeSurveyLocally,
     loading,
   };
 }

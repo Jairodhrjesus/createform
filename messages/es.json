@@ -154,7 +154,16 @@
       "manualCopy": "Copia manualmente:",
       "toastLinkCopied": "Enlace copiado al portapapeles.",
       "toastIdCopied": "ID copiado al portapapeles.",
-      "toastDuplicated": "Formulario duplicado como borrador."
+      "toastDuplicated": "Formulario duplicado como borrador.",
+      "toastDeleted": "Formulario eliminado.",
+      "deleteModal": {
+        "title": "¿Eliminar este formulario?",
+        "description": "Esta acción no se puede deshacer.",
+        "warning": "El formulario y sus datos se eliminarán para siempre.",
+        "confirm": "Sí, eliminar",
+        "cancel": "Cancelar",
+        "deleting": "Eliminando..."
+      }
     },
     "card": {
       "updated": "Actualizado: {date}",
@@ -172,6 +181,7 @@
       "duplicateSurvey": "No se pudo duplicar. Intenta de nuevo.",
       "moveSurvey": "No se pudo mover la encuesta. Intenta de nuevo.",
       "workspaceDelete": "No se pudo eliminar el workspace.",
+      "deleteSurvey": "No se pudo eliminar el formulario. Intenta de nuevo.",
       "copyFailed": "No se pudo copiar. Intenta nuevamente."
     },
     "modals": {

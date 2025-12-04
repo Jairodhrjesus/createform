@@ -7,9 +7,10 @@ import { client } from "@/utils/amplify-utils";
 interface LeadCapturePanelProps {
   survey: Schema["Survey"]["type"];
   surveyId: string;
+  variant?: "panel" | "embedded";
 }
 
-export function LeadCapturePanel({ survey, surveyId }: LeadCapturePanelProps) {
+export function LeadCapturePanel({ survey, surveyId, variant = "panel" }: LeadCapturePanelProps) {
   const [leadTitle, setLeadTitle] = useState("Ultimo paso: recibe tu resultado por email");
   const [leadSubtitle, setLeadSubtitle] = useState(
     "Ingresa tu correo y (opcional) tu nombre para enviarte el resumen del resultado."
@@ -86,7 +87,13 @@ export function LeadCapturePanel({ survey, surveyId }: LeadCapturePanelProps) {
   ]);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div
+      className={
+        variant === "embedded"
+          ? "rounded-3xl border border-amber-200 bg-white p-6 shadow-sm"
+          : "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+      }
+    >
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">

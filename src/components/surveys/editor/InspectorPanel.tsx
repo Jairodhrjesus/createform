@@ -22,7 +22,6 @@ const QUESTION_TYPES: { value: string; label: string }[] = [
 
 interface InspectorPanelProps {
   question: QuestionType | null;
-  onDelete?: (id: string) => void;
   onChangeType?: (type: string) => void;
   required?: boolean;
   onToggleRequired?: () => void;
@@ -30,7 +29,6 @@ interface InspectorPanelProps {
 
 export function InspectorPanel({
   question,
-  onDelete,
   onChangeType,
   required = false,
   onToggleRequired,
@@ -38,9 +36,7 @@ export function InspectorPanel({
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Question
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Question</p>
         <div className="mt-3 space-y-2">
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Tipo de pregunta
@@ -56,9 +52,7 @@ export function InspectorPanel({
           <label className="mt-3 flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             <div className="flex flex-col">
               <span>Obligatoria</span>
-              <span className="text-xs text-slate-500">
-                Controla si el usuario debe responder.
-              </span>
+              <span className="text-xs text-slate-500">Controla si el usuario debe responder.</span>
             </div>
             <input
               type="checkbox"
@@ -69,23 +63,6 @@ export function InspectorPanel({
             />
           </label>
         </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Actions
-        </p>
-        <p className="mt-1 text-sm text-slate-600">
-          Use this area to manage the selected question.
-        </p>
-        <button
-          type="button"
-          onClick={() => question?.id && onDelete?.(question.id)}
-          disabled={!question}
-          className="mt-3 w-full rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Delete question
-        </button>
       </div>
     </div>
   );

@@ -45,6 +45,7 @@ export default function Dashboard() {
     hasUnassigned,
     updateSurveyLocally,
     addSurveyLocally,
+    removeSurveyLocally,
     loading: surveysLoading,
   } = useSurveys({
     activeWorkspaceId,
@@ -107,6 +108,7 @@ export default function Dashboard() {
     handleToggleActive,
     handleDuplicate,
     handleMoveSurvey,
+    deleteModal,
   } = useSurveyActions({
     locale,
     t,
@@ -116,6 +118,7 @@ export default function Dashboard() {
     setActiveWorkspaceId,
     setOpenMenuId,
     updateSurveyLocally,
+    removeSurveyLocally,
   });
 
   useEffect(() => {
@@ -389,6 +392,8 @@ export default function Dashboard() {
           )}
         </div>
       </Modal>
+
+      {deleteModal}
 
       <Modal
         open={deleteModalOpen}
