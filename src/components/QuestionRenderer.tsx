@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import * as Avatar from "@radix-ui/react-avatar";
 import type { Schema } from "@/amplify/data/resource";
 import { useQuestionOptions } from "@/hooks/useQuestionOptions";
 
@@ -316,9 +317,14 @@ export default function QuestionRenderer({
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="mb-4 text-lg font-semibold text-slate-800">
-        {displayOrder}. {question.text}
-      </h3>
+      <div className="mb-4 flex items-start gap-3">
+        <Avatar.Root className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-900/90 text-sm font-semibold text-white ring-2 ring-slate-100">
+          <Avatar.Fallback className="select-none">{displayOrder}</Avatar.Fallback>
+        </Avatar.Root>
+        <h3 className="text-lg font-semibold text-slate-800 leading-tight">
+          {question.text}
+        </h3>
+      </div>
       {content}
     </div>
   );
