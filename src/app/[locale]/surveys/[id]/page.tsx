@@ -83,7 +83,7 @@ export default function SurveyEditorPage() {
       title: survey.leadCaptureTitle || "Lead capture",
       description:
         survey.leadCaptureSubtitle ||
-        "Solicita el email (y opcionalmente el nombre) antes de mostrar el resultado.",
+        "Solicita los datos de contacto (puedes elegir bloques) antes de mostrar el resultado.",
       type: "lead_capture" as const,
       minScore: 0,
       maxScore: 0,

@@ -1,68 +1,93 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  LeadCaptureField,
+  LeadCaptureValueMap,
+  buildNameFromValues,
+  extractEmailFromValues,
+  hasAnyValue,
+} from "@/utils/leadCapture";
 
 type Props = {
-  onSubmit: (payload: { name: string; email: string }) => void | Promise<void>;
+  fields: LeadCaptureField[];
+  onSubmit: (payload: {
+    values: LeadCaptureValueMap;
+    primaryEmail?: string;
+    fullName?: string;
+  }) => void | Promise<void>;
   loading?: boolean;
-  defaultName?: string;
-  defaultEmail?: string;
+  defaultValues?: LeadCaptureValueMap;
   onBack?: () => void;
   errorMessage?: string | null;
   title?: string;
   subtitle?: string;
   ctaLabel?: string;
   disclaimer?: string;
-  collectName?: boolean;
-  requireName?: boolean;
-  collectEmail?: boolean;
-  requireEmail?: boolean;
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function EmailGate({
+  fields,
   onSubmit,
   loading = false,
-  defaultName = "",
-  defaultEmail = "",
+  defaultValues = {},
   onBack,
   errorMessage,
   title = "Ultimo paso: recibe tu resultado por email",
-  subtitle = "Ingresa tu correo (requerido) y opcionalmente tu nombre para enviarte el resumen del resultado.",
+  subtitle = "Ingresa tus datos de contacto para recibir el resumen. Al menos un campo es requerido.",
   ctaLabel = "Ver resultado",
-  disclaimer = "Guardamos tu resultado y te enviamos el enlace en tu correo.",
-  collectName = true,
-  requireName = false,
-  collectEmail = true,
-  requireEmail = true,
+  disclaimer = "Guardamos tu resultado y usaremos estos datos solo para enviarte el enlace.",
 }: Props) {
-  const [name, setName] = useState(defaultName);
-  const [email, setEmail] = useState(defaultEmail);
+  const [values, setValues] = useState<LeadCaptureValueMap>(defaultValues || {});
   const [localError, setLocalError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setName(defaultName);
-  }, [defaultName]);
+  const requiredFieldIds = useMemo(
+    () => fields.filter((f) => f.required).map((f) => f.id),
+    [fields]
+  );
 
   useEffect(() => {
-    setEmail(defaultEmail);
-  }, [defaultEmail]);
+    setValues(defaultValues || {});
+  }, [defaultValues]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (collectEmail && (requireEmail || email.trim())) {
-      if (!emailRegex.test(email.trim())) {
-        setLocalError("Ingresa un email valido para ver tu resultado.");
-        return;
-      }
-    }
-    if (collectName && requireName && !name.trim()) {
-      setLocalError("Ingresa tu nombre para continuar.");
+    const missing = requiredFieldIds.filter((id) => !values[id]?.trim());
+    if (missing.length > 0) {
+      setLocalError("Completa los campos obligatorios para continuar.");
       return;
     }
+    if (!hasAnyValue(values)) {
+      setLocalError("Ingresa al menos un dato de contacto para continuar.");
+      return;
+    }
+    const emailValue = extractEmailFromValues(fields, values);
+    if (emailValue && !emailRegex.test(emailValue)) {
+      setLocalError("Ingresa un email valido para ver tu resultado.");
+      return;
+    }
+
     setLocalError(null);
-    await onSubmit({ name: name.trim(), email: email.trim() });
+    await onSubmit({
+      values: Object.fromEntries(
+        Object.entries(values).map(([key, val]) => [key, (val || "").trim()])
+      ),
+      primaryEmail: emailValue || undefined,
+      fullName: buildNameFromValues(fields, values) || undefined,
+    });
+  };
+
+  const handleValueChange = (id: string, value: string) => {
+    setLocalError(null);
+    setValues((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const renderInputType = (field: LeadCaptureField) => {
+    if (field.type === "email") return "email";
+    if (field.type === "phone") return "tel";
+    return "text";
   };
 
   return (
@@ -86,35 +111,21 @@ export default function EmailGate({
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {collectName && (
-            <div>
+          {fields.map((field) => (
+            <div key={field.id}>
               <label className="text-sm font-semibold text-slate-800">
-                {requireName ? "Nombre (requerido)" : "Nombre (opcional)"}
+                {field.label} {field.required ? "(requerido)" : "(opcional)"}
               </label>
               <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ej: Ana Martinez"
+                type={renderInputType(field)}
+                required={false}
+                value={values[field.id] || ""}
+                onChange={(e) => handleValueChange(field.id, e.target.value)}
+                placeholder={field.placeholder || ""}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
               />
             </div>
-          )}
-          {collectEmail && (
-            <div>
-              <label className="text-sm font-semibold text-slate-800">
-                {requireEmail ? "Email (requerido)" : "Email (opcional)"}
-              </label>
-              <input
-                type="email"
-                required={requireEmail}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@empresa.com"
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
-              />
-            </div>
-          )}
+          ))}
         </div>
 
         {(localError || errorMessage) && (

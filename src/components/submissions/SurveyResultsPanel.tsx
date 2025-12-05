@@ -7,6 +7,11 @@ import { DropdownSelect } from "@/components/ui/DropdownSelect";
 
 type SubmissionType = Schema["Submission"]["type"];
 type SurveyType = Schema["Survey"]["type"];
+type LeadCaptureEntry = {
+  label?: string;
+  value?: string;
+  type?: string;
+};
 
 interface SurveyResultsPanelProps {
   survey: SurveyType;
@@ -31,6 +36,70 @@ const toDate = (value: unknown): Date | null => {
   if (!value) return null;
   const parsed = value instanceof Date ? value : new Date(value as string);
   return isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const parseLeadCaptureData = (data: SubmissionType["leadCaptureData"]): LeadCaptureEntry[] => {
+  if (!data) return [];
+  if (Array.isArray(data)) {
+    return data
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const val = (item as any).value ?? "";
+        return {
+          label: (item as any).label || "Dato",
+          value: typeof val === "string" ? val : String(val || ""),
+          type: (item as any).type,
+        };
+      })
+      .filter((item) => item && item.value) as LeadCaptureEntry[];
+  }
+  if (typeof data === "string") {
+    try {
+      const parsed = JSON.parse(data);
+      return parseLeadCaptureData(parsed);
+    } catch {
+      return [];
+    }
+  }
+  if (typeof data === "object") {
+    return Object.entries(data)
+      .map(([key, value]) => ({
+        label: key,
+        value: typeof value === "string" ? value : String(value || ""),
+      }))
+      .filter((item) => item.value);
+  }
+  return [];
+};
+
+const buildLeadInfo = (submission: SubmissionType) => {
+  const entries = parseLeadCaptureData(submission.leadCaptureData);
+  const firstName = entries.find((e) => e.type === "first_name")?.value;
+  const lastName = entries.find((e) => e.type === "last_name")?.value;
+  const derivedName =
+    [firstName, lastName].filter(Boolean).join(" ").trim() ||
+    submission.respondentName ||
+    "Anonimo";
+  const derivedEmail =
+    submission.respondentEmail || entries.find((e) => e.type === "email")?.value || "";
+  const extraContacts = entries
+    .filter(
+      (e) => e.type !== "email" && e.type !== "first_name" && e.type !== "last_name"
+    )
+    .map((e) => e.value)
+    .filter(Boolean);
+
+  return {
+    name: derivedName,
+    email: derivedEmail,
+    extras: extraContacts,
+    rawEntries: entries,
+  };
+};
+
+const hasContact = (submission: SubmissionType) => {
+  const info = buildLeadInfo(submission);
+  return Boolean(info.email || info.extras.length);
 };
 
 export default function SurveyResultsPanel({
@@ -60,10 +129,14 @@ export default function SurveyResultsPanel({
     return search.trim()
       ? byOutcome.filter(sub => {
           const term = search.toLowerCase();
+          const lead = buildLeadInfo(sub);
           return (
             sub.respondentEmail?.toLowerCase().includes(term) ||
+            lead.email?.toLowerCase().includes(term) ||
             sub.respondentName?.toLowerCase().includes(term) ||
-            JSON.stringify(sub.answersContent || "{}").toLowerCase().includes(term)
+            lead.name.toLowerCase().includes(term) ||
+            JSON.stringify(sub.answersContent || "{}").toLowerCase().includes(term) ||
+            JSON.stringify(sub.leadCaptureData || "{}").toLowerCase().includes(term)
           );
         })
       : byOutcome;
@@ -77,7 +150,7 @@ export default function SurveyResultsPanel({
         averageScore: 0,
         averageAnswered: 0,
         uniqueRespondents: 0,
-        leadsWithEmail: 0,
+        leadsWithContact: 0,
         topOutcome: null,
       };
     }
@@ -99,7 +172,7 @@ export default function SurveyResultsPanel({
       averageScore: Number((totalScore / totalSubmissions).toFixed(1)),
       averageAnswered: Number((answeredCount / totalSubmissions).toFixed(1)),
       uniqueRespondents: respondentIds.size,
-      leadsWithEmail: submissions.filter(sub => sub.respondentEmail).length,
+      leadsWithContact: submissions.filter((sub) => hasContact(sub)).length,
       topOutcome: {
         title: topOutcomeEntry[0],
         percent: Math.round((topOutcomeEntry[1] / totalSubmissions) * 100),
@@ -146,8 +219,8 @@ export default function SurveyResultsPanel({
           <p className="mt-2 text-3xl font-bold text-slate-900">{metrics.averageScore}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Leads con email</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{formatNumber(metrics.leadsWithEmail)}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Leads con contacto</p>
+          <p className="mt-2 text-3xl font-bold text-slate-900">{formatNumber(metrics.leadsWithContact)}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Resultado principal</p>
@@ -204,27 +277,40 @@ export default function SurveyResultsPanel({
               <span className="col-span-3">Resultado</span>
               <span className="col-span-2 text-right">Score</span>
               <span className="col-span-4 text-right">Fecha</span>
-            </div>
-            {filteredSubmissions.map(sub => (
-              <div key={sub.id} className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm">
-                <div className="col-span-3">
-                  <p className="font-semibold text-slate-900">{sub.respondentName || "Anonimo"}</p>
-                  <p className="text-xs text-slate-600">{sub.respondentEmail}</p>
-                </div>
-                <div className="col-span-3">
-                  <p className="font-semibold text-slate-800">{sub.outcomeTitle || "N/A"}</p>
-                </div>
-                <div className="col-span-2 text-right">
-                  <span className="font-mono text-base font-semibold text-slate-900">{sub.totalScore || 0}</span>
-                </div>
-                <div className="col-span-4 text-right">
-                  <p className="font-semibold text-slate-800">{formatDate(toDate(sub.createdAt))}</p>
-                </div>
-              </div>
-            ))}
           </div>
-        )}
-      </section>
-    </div>
-  );
+          {filteredSubmissions.map(sub => (
+            <div key={sub.id} className="grid grid-cols-12 items-center gap-3 px-4 py-3 text-sm">
+              {(() => {
+                const lead = buildLeadInfo(sub);
+                const extrasLine =
+                  lead.extras.filter(Boolean).slice(0, 2).join(" • ") ||
+                  (lead.email ? "" : "Sin datos de contacto");
+                return (
+                  <>
+                    <div className="col-span-3">
+                      <p className="font-semibold text-slate-900">{lead.name}</p>
+                      <p className="text-xs text-slate-600">{lead.email || extrasLine}</p>
+                    </div>
+                    <div className="col-span-3">
+                      <p className="font-semibold text-slate-800">{sub.outcomeTitle || "N/A"}</p>
+                      {lead.email && extrasLine && (
+                        <p className="text-[11px] text-slate-500">{extrasLine}</p>
+                      )}
+                    </div>
+                    <div className="col-span-2 text-right">
+                      <span className="font-mono text-base font-semibold text-slate-900">{sub.totalScore || 0}</span>
+                    </div>
+                    <div className="col-span-4 text-right">
+                      <p className="font-semibold text-slate-800">{formatDate(toDate(sub.createdAt))}</p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  </div>
+);
 }

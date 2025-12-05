@@ -6,6 +6,16 @@ import { client } from "@/utils/amplify-utils";
 import type { Schema } from "@/amplify/data/resource";
 import QuestionRenderer from "@/components/QuestionRenderer";
 import EmailGate from "@/components/EmailGate";
+import {
+  LeadCaptureField,
+  LeadCaptureValueMap,
+  buildNameFromValues,
+  buildLeadCaptureSnapshot,
+  createLeadField,
+  defaultLeadFields,
+  extractEmailFromValues,
+  sanitizeLeadFields,
+} from "@/utils/leadCapture";
 
 // Definicion de tipos para la respuesta que se guarda en el estado local
 interface AnswerData {
@@ -42,6 +52,7 @@ export default function PublicSurveyView() {
   const [leadName, setLeadName] = useState("");
   const [leadEmail, setLeadEmail] = useState("");
   const [loading, setLoading] = useState(true);
+  const [leadValues, setLeadValues] = useState<LeadCaptureValueMap>({});
 
   // 1. Cargar todo: Encuesta, Preguntas y Resultados (Outcomes)
   useEffect(() => {
@@ -117,19 +128,29 @@ export default function PublicSurveyView() {
   const progressValue = Math.min(totalAnswered, totalQuestions);
 
   const leadConfig = useMemo(() => {
+    const legacyFields: LeadCaptureField[] = [];
+    if (survey?.leadCaptureCollectName ?? true) {
+      legacyFields.push(
+        createLeadField("first_name", { required: survey?.leadCaptureRequireName ?? false })
+      );
+    }
+    if (survey?.leadCaptureCollectEmail ?? true) {
+      legacyFields.push(
+        createLeadField("email", { required: survey?.leadCaptureRequireEmail ?? true })
+      );
+    }
+    const parsedFields = sanitizeLeadFields((survey as any)?.leadCaptureFields || legacyFields);
+
     return {
       title: survey?.leadCaptureTitle || "Ultimo paso: recibe tu resultado por email",
       subtitle:
         survey?.leadCaptureSubtitle ||
-        "Ingresa tu correo y (opcional) tu nombre para enviarte el resumen del resultado.",
+        "Comparte tus datos de contacto (al menos uno) para enviarte el resumen del resultado.",
       ctaLabel: survey?.leadCaptureCtaLabel || "Ver resultado",
       disclaimer:
         survey?.leadCaptureDisclaimer ||
         "Guardamos tu resultado y te enviamos el enlace en tu correo.",
-      collectName: survey?.leadCaptureCollectName ?? true,
-      requireName: survey?.leadCaptureRequireName ?? false,
-      collectEmail: true, // Email es obligatorio para el lead capture
-      requireEmail: true,
+      fields: parsedFields.length ? parsedFields : defaultLeadFields(),
     };
   }, [survey]);
 
@@ -154,7 +175,15 @@ export default function PublicSurveyView() {
     setCurrentStep((prev) => Math.max(prev - 1, 0));
   };
 
-  const handleLeadSubmit = async ({ name, email }: { name: string; email: string }) => {
+  const handleLeadSubmit = async ({
+    values,
+    primaryEmail,
+    fullName,
+  }: {
+    values: LeadCaptureValueMap;
+    primaryEmail?: string;
+    fullName?: string;
+  }) => {
     if (totalAnswered !== totalQuestions) {
       setLeadError("Responde todas las preguntas antes de continuar.");
       setShowEmailGate(false);
@@ -162,8 +191,13 @@ export default function PublicSurveyView() {
     }
     setLeadError(null);
     setSavingLead(true);
-    setLeadName(name);
-    setLeadEmail(email);
+    const capturedName = fullName || buildNameFromValues(leadConfig.fields, values) || "";
+    const capturedEmail =
+      primaryEmail || extractEmailFromValues(leadConfig.fields, values) || "";
+    setLeadName(capturedName);
+    setLeadEmail(capturedEmail);
+    setLeadValues(values);
+    const leadSnapshot = buildLeadCaptureSnapshot(leadConfig.fields, values);
 
     const totalScore = Object.values(answers).reduce(
       (sum, answer) => sum + (answer.score || 0),
@@ -177,8 +211,9 @@ export default function PublicSurveyView() {
       outcomeTitle: matchedOutcome?.title || "Resultado No Definido",
       answersContent: JSON.stringify(answers),
       respondentId: generateRespondentId(),
-      respondentName: name,
-      respondentEmail: email,
+      respondentName: capturedName,
+      respondentEmail: capturedEmail || undefined,
+      leadCaptureData: leadSnapshot,
     };
 
     const { errors } = await client.models.Submission.create(
@@ -204,7 +239,7 @@ export default function PublicSurveyView() {
       }
       if (errors[0]?.message?.includes("not defined for input object type")) {
         errorMessage =
-          "El backend aun no tiene los campos respondentName/respondentEmail. Corre 'npx ampx sandbox' o 'amplify push' para alinear el esquema.";
+          "El backend aun no tiene los campos respondentName/respondentEmail/leadCaptureData. Corre 'npx ampx sandbox' o 'amplify push' para alinear el esquema.";
       }
       setLeadError(errorMessage);
       return;
@@ -259,25 +294,23 @@ export default function PublicSurveyView() {
 
           <p className="text-xs mt-6 text-gray-400">Tu respuesta ha sido guardada.</p>
           <p className="text-xs mt-1 text-gray-400">
-            Enviaremos el resultado a {leadEmail || "tu correo"}.
+            {leadEmail
+              ? `Enviaremos el resultado a ${leadEmail}.`
+              : "Guardamos los datos de contacto que compartiste."}
           </p>
         </div>
       ) : showEmailGate ? (
         <EmailGate
           onSubmit={handleLeadSubmit}
           loading={savingLead}
-          defaultName={leadName}
-          defaultEmail={leadEmail}
+          fields={leadConfig.fields}
+          defaultValues={leadValues}
           onBack={() => setShowEmailGate(false)}
           errorMessage={leadError}
           title={leadConfig.title}
           subtitle={leadConfig.subtitle}
           ctaLabel={leadConfig.ctaLabel}
           disclaimer={leadConfig.disclaimer}
-          collectName={leadConfig.collectName}
-          requireName={leadConfig.requireName}
-          collectEmail={leadConfig.collectEmail}
-          requireEmail={leadConfig.requireEmail}
         />
       ) : (
         <div className="space-y-6">

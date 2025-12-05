@@ -3,6 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import type { Schema } from "@/amplify/data/resource";
 import { client } from "@/utils/amplify-utils";
+import { useLeadCaptureBlocks } from "@/hooks/useLeadCaptureBlocks";
+import LeadCaptureFieldBuilder from "./LeadCaptureFieldBuilder";
+import {
+  defaultLeadFields,
+  sanitizeLeadFields,
+  createLeadField,
+  LeadCaptureField,
+  LEAD_FIELD_LIBRARY,
+} from "@/utils/leadCapture";
 
 interface LeadCapturePanelProps {
   survey: Schema["Survey"]["type"];
@@ -13,16 +22,23 @@ interface LeadCapturePanelProps {
 export function LeadCapturePanel({ survey, surveyId, variant = "panel" }: LeadCapturePanelProps) {
   const [leadTitle, setLeadTitle] = useState("Ultimo paso: recibe tu resultado por email");
   const [leadSubtitle, setLeadSubtitle] = useState(
-    "Ingresa tu correo y (opcional) tu nombre para enviarte el resumen del resultado."
+    "Ingresa tus datos de contacto (al menos uno) para enviarte el resumen del resultado."
   );
   const [leadCta, setLeadCta] = useState("Ver resultado");
   const [leadDisclaimer, setLeadDisclaimer] = useState(
-    "Guardamos tu resultado y te enviamos el enlace en tu correo."
+    "Guardamos tu resultado y usaremos estos datos solo para enviarte el enlace."
   );
-  const [collectName, setCollectName] = useState(true);
-  const [requireName, setRequireName] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const {
+    fields,
+    addField,
+    removeField,
+    updateField,
+    toggleRequired,
+    moveField,
+    resetFields,
+  } = useLeadCaptureBlocks(defaultLeadFields());
 
   useEffect(() => {
     if (!survey) return;
@@ -31,19 +47,40 @@ export function LeadCapturePanel({ survey, surveyId, variant = "panel" }: LeadCa
     );
     setLeadSubtitle(
       survey.leadCaptureSubtitle ||
-        "Ingresa tu correo y (opcional) tu nombre para enviarte el resumen del resultado."
+        "Ingresa tus datos de contacto (al menos uno) para enviarte el resumen del resultado."
     );
     setLeadCta(survey.leadCaptureCtaLabel || "Ver resultado");
     setLeadDisclaimer(
-      survey.leadCaptureDisclaimer || "Guardamos tu resultado y te enviamos el enlace en tu correo."
+      survey.leadCaptureDisclaimer ||
+        "Guardamos tu resultado y usaremos estos datos solo para enviarte el enlace."
     );
-    setCollectName(survey.leadCaptureCollectName ?? true);
-    setRequireName(survey.leadCaptureRequireName ?? false);
-  }, [survey]);
+    const legacyFields: LeadCaptureField[] = [];
+    if (survey.leadCaptureCollectName ?? true) {
+      legacyFields.push(
+        createLeadField("first_name", { required: survey.leadCaptureRequireName ?? false })
+      );
+    }
+    if (survey.leadCaptureCollectEmail ?? true) {
+      legacyFields.push(
+        createLeadField("email", { required: survey.leadCaptureRequireEmail ?? true })
+      );
+    }
+    const incoming = (survey as any).leadCaptureFields || legacyFields;
+    resetFields(sanitizeLeadFields(incoming));
+  }, [resetFields, survey]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
     setMessage(null);
+    const normalizedFields = fields.map((field) => {
+      const template = LEAD_FIELD_LIBRARY.find((tpl) => tpl.type === field.type);
+      return {
+        ...field,
+        label: field.label?.trim() || template?.label || "Campo",
+        placeholder: field.placeholder ?? template?.placeholder ?? "",
+        required: Boolean(field.required),
+      };
+    });
     try {
       const { errors } = await client.models.Survey.update({
         id: surveyId,
@@ -51,17 +88,19 @@ export function LeadCapturePanel({ survey, surveyId, variant = "panel" }: LeadCa
         leadCaptureSubtitle: leadSubtitle,
         leadCaptureCtaLabel: leadCta,
         leadCaptureDisclaimer: leadDisclaimer,
-        leadCaptureCollectName: collectName,
-        leadCaptureRequireName: requireName,
-        leadCaptureCollectEmail: true,
-        leadCaptureRequireEmail: true,
+        leadCaptureFields: normalizedFields,
+        // Legacy flags kept in sync for backward compatibility
+        leadCaptureCollectName: normalizedFields.some((f) => f.type === "first_name"),
+        leadCaptureRequireName: normalizedFields.some((f) => f.type === "first_name" && f.required),
+        leadCaptureCollectEmail: normalizedFields.some((f) => f.type === "email"),
+        leadCaptureRequireEmail: normalizedFields.some((f) => f.type === "email" && f.required),
       } as unknown as Schema["Survey"]["updateType"]);
 
       if (errors?.length) {
         const messages = errors.map((e) => e.message || "").join("; ");
         if (messages.includes("not defined for input object type") || messages.includes("Unknown field")) {
           setMessage(
-            "Actualiza el backend para los campos de lead capture (npx ampx sandbox o amplify push && amplify codegen)."
+            "Actualiza el backend para los campos dinamicos de lead capture (leadCaptureFields/leadCaptureData)."
           );
         } else {
           setMessage("No se pudo guardar la configuracion. Detalle: " + messages);
@@ -76,15 +115,7 @@ export function LeadCapturePanel({ survey, surveyId, variant = "panel" }: LeadCa
     } finally {
       setSaving(false);
     }
-  }, [
-    collectName,
-    leadCta,
-    leadDisclaimer,
-    leadSubtitle,
-    leadTitle,
-    requireName,
-    surveyId,
-  ]);
+  }, [fields, leadCta, leadDisclaimer, leadSubtitle, leadTitle, surveyId]);
 
   return (
     <div
@@ -100,10 +131,10 @@ export function LeadCapturePanel({ survey, surveyId, variant = "panel" }: LeadCa
             Lead capture
           </p>
           <h3 className="text-lg font-semibold text-slate-900">
-            Personaliza la puerta de email
+            Personaliza el lead capture
           </h3>
           <p className="text-sm text-slate-600">
-            Define el copy y los campos que solicitas antes de mostrar el resultado.
+            Define el copy y arma bloques con los datos que solicitas antes de mostrar el resultado.
           </p>
           <p className="text-xs text-slate-500">
             Esta configuracion se guarda solo en esta encuesta.
@@ -148,40 +179,14 @@ export function LeadCapturePanel({ survey, surveyId, variant = "panel" }: LeadCa
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 text-sm text-slate-800">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold">Campos a solicitar</p>
-              <p className="text-xs text-slate-500">
-                Email es obligatorio; puedes decidir si pides nombre y si es requerido.
-              </p>
-            </div>
-            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-700">
-              Email siempre requerido
-            </span>
-          </div>
-          <div className="mt-3 flex flex-col gap-2">
-            <label className="flex items-center gap-2 text-sm text-slate-800">
-              <input
-                type="checkbox"
-                checked={collectName}
-                onChange={(e) => setCollectName(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
-              />
-              Solicitar nombre
-            </label>
-            <label className="flex items-center gap-2 text-sm text-slate-800 pl-6">
-              <input
-                type="checkbox"
-                checked={requireName}
-                onChange={(e) => setRequireName(e.target.checked)}
-                disabled={!collectName}
-                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400 disabled:opacity-50"
-              />
-              Hacer nombre obligatorio
-            </label>
-          </div>
-        </div>
+        <LeadCaptureFieldBuilder
+          fields={fields}
+          onAdd={addField}
+          onRemove={removeField}
+          onChange={updateField}
+          onToggleRequired={toggleRequired}
+          onMove={moveField}
+        />
 
         {message && <p className="text-xs font-semibold text-emerald-700">{message}</p>}
 
@@ -191,14 +196,13 @@ export function LeadCapturePanel({ survey, surveyId, variant = "panel" }: LeadCa
             onClick={() => {
               setLeadTitle("Ultimo paso: recibe tu resultado por email");
               setLeadSubtitle(
-                "Ingresa tu correo y (opcional) tu nombre para enviarte el resumen del resultado."
+                "Ingresa tus datos de contacto (al menos uno) para enviarte el resumen del resultado."
               );
               setLeadCta("Ver resultado");
               setLeadDisclaimer(
-                "Guardamos tu resultado y te enviamos el enlace en tu correo."
+                "Guardamos tu resultado y usaremos estos datos solo para enviarte el enlace."
               );
-              setCollectName(true);
-              setRequireName(false);
+              resetFields(defaultLeadFields());
               setMessage(null);
             }}
             className="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"

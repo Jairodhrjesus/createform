@@ -24,6 +24,7 @@ const schema = a.schema({
     leadCaptureSubtitle: a.string(),
     leadCaptureCtaLabel: a.string(),
     leadCaptureDisclaimer: a.string(),
+    leadCaptureFields: a.json(),
 
     // Opcional para no romper datos antiguos; el UI siempre asigna workspace
     workspaceId: a.id(),
@@ -87,7 +88,8 @@ const schema = a.schema({
     answersContent: a.json(), // Guardamos el detalle como JSON
     respondentId: a.string(), // Opcional: para rastrear cookies/sesiones anonimas
     respondentName: a.string(), // Lead capture
-    respondentEmail: a.string().required(), // Email gate requerido
+    respondentEmail: a.string(), // Email opcional si el bloque lo remueve
+    leadCaptureData: a.json(), // Datos completos del lead capture dinamico
   }).authorization((allow) => [
     allow.owner(), // Tu ves todas las respuestas
     allow.publicApiKey() // Cualquiera puede CREAR una respuesta
