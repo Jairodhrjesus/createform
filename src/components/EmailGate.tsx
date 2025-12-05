@@ -24,6 +24,7 @@ type Props = {
   subtitle?: string;
   ctaLabel?: string;
   disclaimer?: string;
+  allowSkipValidation?: boolean;
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -39,6 +40,7 @@ export default function EmailGate({
   subtitle = "Ingresa tus datos de contacto para recibir el resumen. Al menos un campo es requerido.",
   ctaLabel = "Ver resultado",
   disclaimer = "Guardamos tu resultado y usaremos estos datos solo para enviarte el enlace.",
+  allowSkipValidation = false,
 }: Props) {
   const [values, setValues] = useState<LeadCaptureValueMap>(defaultValues || {});
   const [localError, setLocalError] = useState<string | null>(null);
@@ -54,20 +56,23 @@ export default function EmailGate({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const missing = requiredFieldIds.filter((id) => !values[id]?.trim());
-    if (missing.length > 0) {
-      setLocalError("Completa los campos obligatorios para continuar.");
-      return;
-    }
-    if (!hasAnyValue(values)) {
-      setLocalError("Ingresa al menos un dato de contacto para continuar.");
-      return;
+    if (!allowSkipValidation) {
+      const missing = requiredFieldIds.filter((id) => !values[id]?.trim());
+      if (missing.length > 0) {
+        setLocalError("Completa los campos obligatorios para continuar.");
+        return;
+      }
+      if (!hasAnyValue(values)) {
+        setLocalError("Ingresa al menos un dato de contacto para continuar.");
+        return;
+      }
+      const emailValue = extractEmailFromValues(fields, values);
+      if (emailValue && !emailRegex.test(emailValue)) {
+        setLocalError("Ingresa un email valido para ver tu resultado.");
+        return;
+      }
     }
     const emailValue = extractEmailFromValues(fields, values);
-    if (emailValue && !emailRegex.test(emailValue)) {
-      setLocalError("Ingresa un email valido para ver tu resultado.");
-      return;
-    }
 
     setLocalError(null);
     await onSubmit({

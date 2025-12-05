@@ -10,6 +10,7 @@ import { QuestionRail } from "@/components/surveys/editor/QuestionRail";
 import { QuestionCanvas } from "@/components/surveys/editor/QuestionCanvas";
 import { InspectorPanel } from "@/components/surveys/editor/InspectorPanel";
 import { ContentToolbar } from "@/components/surveys/editor/ContentToolbar";
+import { SharePreviewPanel } from "@/components/surveys/editor/SharePreviewPanel";
 import { useSurveyEditorData } from "@/hooks/useSurveyEditorData";
 import { useQuestionOptions } from "@/hooks/useQuestionOptions";
 import { useQuestionInspector } from "@/hooks/useQuestionInspector";
@@ -22,7 +23,9 @@ export default function SurveyEditorPage() {
   const locale = useLocale();
   const { user } = useAuthenticator();
 
+  const [activeTab, setActiveTab] = useState<"design" | "share">("design");
   const [selectedEndingId, setSelectedEndingId] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const {
     survey,
     questions,
@@ -34,6 +37,7 @@ export default function SurveyEditorPage() {
     updateQuestionText,
     updateQuestionType,
     reorderQuestion,
+    refreshSurvey,
   } = useSurveyEditorData(surveyId, { autoSelect: !selectedEndingId });
   const {
     options,
@@ -173,6 +177,7 @@ export default function SurveyEditorPage() {
   const handleSelectEnding = (id: string) => {
     setSelectedEndingId(id);
     selectQuestion(""); // deseleccionar pregunta
+    setActiveTab("design");
   };
 
   const handleSelectQuestion = (id: string) => {
@@ -204,6 +209,22 @@ export default function SurveyEditorPage() {
     if (newOutcome?.id) {
       setSelectedEndingId(newOutcome.id as string);
       setEndingOrder((prev) => [...prev.filter((e) => e !== "lead-capture"), newOutcome.id as string]);
+    }
+  };
+
+  const handleTogglePublish = async (nextActive: boolean) => {
+    if (!survey?.id) return;
+    try {
+      setPublishing(true);
+      await client.models.Survey.update({
+        id: survey.id as string,
+        isActive: nextActive,
+      } as any);
+      await refreshSurvey();
+    } catch (err) {
+      console.error("No se pudo cambiar el estado de publicación:", err);
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -249,59 +270,86 @@ export default function SurveyEditorPage() {
 
       <main className="mx-auto px-4 pb-12 pt-6 lg:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <ContentToolbar onAddQuestion={handleAddQuestion} />
+          <ContentToolbar
+            onAddQuestion={handleAddQuestion}
+            activeTab={activeTab}
+            onTabChange={(tab) => setActiveTab(tab)}
+          />
         </div>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-[280px,1fr,320px]">
-          <QuestionRail
-            questions={questions}
-            selectedId={selectedQuestion?.id || null}
-            onSelect={handleSelectQuestion}
-            onAdd={handleAddQuestion}
-            onDelete={deleteQuestion}
-            onDuplicate={handleDuplicateQuestion}
-            onReorder={reorderQuestion}
-            endings={endingItems as any}
-            selectedEndingId={selectedEndingId}
-            onSelectEnding={handleSelectEnding}
-            onAddEnding={handleAddEnding}
-            onDeleteEnding={handleDeleteEnding}
-            onDuplicateEnding={handleDuplicateEnding}
-            onReorderEnding={handleReorderEndings}
-          />
-          <QuestionCanvas
-            question={selectedQuestion}
-            ending={selectedEnding as any}
-            survey={survey}
-            surveyId={surveyId}
-            options={options}
-            optionsLoading={optionsLoading}
-            onChangeText={handleUpdateQuestionText}
-            onAddOption={addOption}
-            onDeleteOption={deleteOption}
-            onUpdateOption={updateOption}
-            onReorderOption={reorderOptions}
-            onDeleteQuestion={deleteQuestion}
-            onUpdateEnding={(updates) => {
-              if (selectedEnding?.id === "lead-capture") {
-                // Lead capture se guarda dentro de Survey; el panel maneja el guardado.
-                return;
-              }
-              if (selectedEnding?.id) {
-                updateOutcome(selectedEnding.id as string, updates as any);
-              }
-            }}
-            onDeleteEnding={() => selectedEnding?.id && handleDeleteEnding(selectedEnding.id)}
-          />
-          <InspectorPanel
-            question={selectedQuestion}
-            onChangeType={(type) => {
-              if (selectedQuestion?.id) updateQuestionType(selectedQuestion.id, type);
-            }}
-            required={required}
-            onToggleRequired={toggleRequired}
-          />
-        </div>
+        {activeTab === "design" && (
+          <div className="mt-5 grid gap-5 lg:grid-cols-[280px,1fr,320px]">
+            <QuestionRail
+              questions={questions}
+              selectedId={selectedQuestion?.id || null}
+              onSelect={handleSelectQuestion}
+              onAdd={handleAddQuestion}
+              onDelete={deleteQuestion}
+              onDuplicate={handleDuplicateQuestion}
+              onReorder={reorderQuestion}
+              endings={endingItems as any}
+              selectedEndingId={selectedEndingId}
+              onSelectEnding={handleSelectEnding}
+              onAddEnding={handleAddEnding}
+              onDeleteEnding={handleDeleteEnding}
+              onDuplicateEnding={handleDuplicateEnding}
+              onReorderEnding={handleReorderEndings}
+            />
+            <QuestionCanvas
+              question={selectedQuestion}
+              ending={selectedEnding as any}
+              survey={survey}
+              surveyId={surveyId}
+              options={options}
+              optionsLoading={optionsLoading}
+              onChangeText={handleUpdateQuestionText}
+              onAddOption={addOption}
+              onDeleteOption={deleteOption}
+              onUpdateOption={updateOption}
+              onReorderOption={reorderOptions}
+              onDeleteQuestion={deleteQuestion}
+              onUpdateEnding={(updates) => {
+                if (selectedEnding?.id === "lead-capture") {
+                  // Lead capture se guarda dentro de Survey; el panel maneja el guardado.
+                  return;
+                }
+                if (selectedEnding?.id) {
+                  updateOutcome(selectedEnding.id as string, updates as any);
+                }
+              }}
+              onDeleteEnding={() => selectedEnding?.id && handleDeleteEnding(selectedEnding.id)}
+            />
+            <InspectorPanel
+              question={selectedQuestion}
+              onChangeType={(type) => {
+                if (selectedQuestion?.id) updateQuestionType(selectedQuestion.id, type);
+              }}
+              required={required}
+              onToggleRequired={toggleRequired}
+              disabled={Boolean(selectedEndingId) || activeTab !== "design"}
+              disabledMessage="Inspector no disponible mientras editas un Ending."
+            />
+          </div>
+        )}
+
+        {activeTab === "share" && (
+          <div className="mt-6">
+            <SharePreviewPanel
+              surveyId={surveyId}
+              surveyTitle={survey.title || "Untitled survey"}
+              locale={locale}
+              isActive={Boolean(survey.isActive)}
+              mode="share"
+              onPublish={() => handleTogglePublish(true)}
+              onDraft={() => handleTogglePublish(false)}
+            />
+            {publishing && (
+              <p className="mt-3 text-xs font-semibold text-slate-500">
+                Actualizando estado de publicación...
+              </p>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

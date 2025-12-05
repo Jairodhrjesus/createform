@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { client } from "@/utils/amplify-utils";
 import type { Schema } from "@/amplify/data/resource";
 import QuestionRenderer from "@/components/QuestionRenderer";
 import EmailGate from "@/components/EmailGate";
+import { Spinner } from "@radix-ui/themes";
 import {
   LeadCaptureField,
   LeadCaptureValueMap,
@@ -17,16 +18,13 @@ import {
   sanitizeLeadFields,
 } from "@/utils/leadCapture";
 
-// Definicion de tipos para la respuesta que se guarda en el estado local
 interface AnswerData {
   questionId: string;
   optionIds: string[];
   score: number;
 }
 
-// Genera un ID anonimo unico para el encuestado (requiere entorno de navegador)
 const generateRespondentId = () => {
-  // Usamos window.crypto para generar un ID unico, necesario para submissions publicas
   return typeof window !== "undefined" && window.crypto.randomUUID
     ? window.crypto.randomUUID()
     : `anon-${Date.now()}`;
@@ -34,7 +32,11 @@ const generateRespondentId = () => {
 
 export default function PublicSurveyView() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const surveyId = (params?.id as string) || "";
+  const previewMode =
+    (searchParams?.get("preview") || "").toLowerCase() === "1" ||
+    (searchParams?.get("preview") || "").toLowerCase() === "true";
 
   const [survey, setSurvey] = useState<Schema["Survey"]["type"] | null>(null);
   const [questions, setQuestions] = useState<Schema["Question"]["type"][]>([]);
@@ -42,7 +44,6 @@ export default function PublicSurveyView() {
   const [isInactive, setIsInactive] = useState(false);
 
   const [answers, setAnswers] = useState<Record<string, AnswerData>>({});
-
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [finalOutcome, setFinalOutcome] = useState<Schema["Outcome"]["type"] | null>(null);
   const [showEmailGate, setShowEmailGate] = useState(false);
@@ -54,11 +55,9 @@ export default function PublicSurveyView() {
   const [loading, setLoading] = useState(true);
   const [leadValues, setLeadValues] = useState<LeadCaptureValueMap>({});
 
-  // 1. Cargar todo: Encuesta, Preguntas y Resultados (Outcomes)
   useEffect(() => {
     if (!surveyId) return;
 
-    // Las suscripciones en esta vista publica utilizan la Public API Key
     client.models.Survey.get({ id: surveyId }).then(({ data: s }) => {
       setSurvey(s);
       setIsInactive(!s?.isActive);
@@ -66,7 +65,6 @@ export default function PublicSurveyView() {
       if (!s?.isActive) return;
     });
 
-    // Si esta inactiva no suscribimos preguntas/outcomes
     if (isInactive) return;
 
     const qSub = client.models.Question.observeQuery({
@@ -89,7 +87,6 @@ export default function PublicSurveyView() {
   }, [surveyId, isInactive]);
 
   useEffect(() => {
-    // Ajusta el paso si la lista de preguntas cambia
     if (questions.length === 0) {
       setCurrentStep(0);
       setShowEmailGate(false);
@@ -98,7 +95,6 @@ export default function PublicSurveyView() {
     }
   }, [questions, currentStep]);
 
-  // 2. Manejar la seleccion de respuestas
   const handleAnswer = (questionId: string, opts: Schema["Option"]["type"][] | null) => {
     const optionIds = opts?.map((o) => o.id as string) || [];
     const score = opts?.reduce((acc, o) => acc + (o.score || 0), 0) || 0;
@@ -113,19 +109,34 @@ export default function PublicSurveyView() {
     setLeadError(null);
   };
 
-  // 3. Logica de Mapeo de Puntaje a Resultado
   const calculateOutcome = (totalScore: number): Schema["Outcome"]["type"] | null => {
-    // Usa <= para Max Score, asegurando que el puntaje final caiga en el rango
-    return (
-      outcomes.find(
-        (o) => totalScore >= (o.minScore || 0) && totalScore <= (o.maxScore || 0)
-      ) || null
+    if (!outcomes.length) return null;
+
+    const rangedMatch =
+      outcomes.find((o) => {
+        const min = typeof o.minScore === "number" ? o.minScore : Number.NEGATIVE_INFINITY;
+        const max = typeof o.maxScore === "number" ? o.maxScore : Number.POSITIVE_INFINITY;
+        return totalScore >= min && totalScore <= max;
+      }) || null;
+
+    if (rangedMatch) return rangedMatch;
+
+    // Fallback: closest outcome below or equal the score, or the first one.
+    const sorted = [...outcomes].sort(
+      (a, b) => (a.minScore ?? Number.NEGATIVE_INFINITY) - (b.minScore ?? Number.NEGATIVE_INFINITY)
     );
+    const closestBelow = [...sorted]
+      .reverse()
+      .find((o) => (o.minScore ?? Number.NEGATIVE_INFINITY) <= totalScore);
+    return closestBelow || sorted[0] || null;
   };
 
   const totalAnswered = useMemo(() => Object.keys(answers).length, [answers]);
   const totalQuestions = questions.length;
   const progressValue = Math.min(totalAnswered, totalQuestions);
+  const progressPercent = totalQuestions
+    ? Math.round((progressValue / totalQuestions) * 100)
+    : 0;
 
   const leadConfig = useMemo(() => {
     const legacyFields: LeadCaptureField[] = [];
@@ -158,7 +169,7 @@ export default function PublicSurveyView() {
     const currentQuestion = questions[currentStep];
     if (!currentQuestion) return;
     const answered = answers[currentQuestion.id];
-    if (!answered) {
+    if (!answered && !previewMode) {
       setLeadError("Responde la pregunta para continuar.");
       return;
     }
@@ -205,6 +216,13 @@ export default function PublicSurveyView() {
     );
     const matchedOutcome = calculateOutcome(totalScore);
 
+    if (previewMode) {
+      setSavingLead(false);
+      setFinalOutcome(matchedOutcome);
+      setIsSubmitted(true);
+      return;
+    }
+
     const submissionPayload = {
       surveyId: surveyId,
       totalScore,
@@ -249,116 +267,169 @@ export default function PublicSurveyView() {
     setIsSubmitted(true);
   };
 
-  if (loading) return <div className="text-center p-10">Cargando encuesta...</div>;
+if (loading)
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
+      <Spinner />
+    </div>
+  );
   if (!survey) return <div className="text-center p-10 text-red-500">Encuesta no encontrada.</div>;
   if (isInactive) return <div className="text-center p-10 text-red-500">Encuesta desactivada.</div>;
   if (questions.length === 0)
     return <div className="text-center p-10 text-red-500">Encuesta sin preguntas.</div>;
 
   return (
-    <div className="max-w-xl mx-auto p-6 bg-white shadow-xl rounded-lg border my-8">
-      <h1 className="text-3xl font-bold mb-2 text-blue-800">{survey.title}</h1>
-      <p className="text-gray-600 mb-8 border-b pb-4">{survey.description}</p>
-
-      {isSubmitted ? (
-        <div className="text-center p-10 bg-green-50 rounded-lg border-green-300 border-2">
-          <h2 className="text-2xl font-bold text-green-700">Tu resultado ha sido calculado</h2>
-          <p className="mt-4 text-gray-800">
-            Puntaje total:{" "}
-            <strong className="text-3xl font-extrabold text-blue-600">
-              {Object.values(answers).reduce((sum, a) => sum + (a.score || 0), 0)}
-            </strong>{" "}
-            puntos.
-          </p>
-
-          {finalOutcome ? (
-            <div className="mt-6 p-4 bg-white rounded border shadow-md">
-              <h3 className="text-2xl font-bold text-blue-900 mb-2">{finalOutcome.title}</h3>
-              <p className="mt-2 text-gray-600">{finalOutcome.description}</p>
-              {finalOutcome.redirectUrl && (
-                <a
-                  href={finalOutcome.redirectUrl}
-                  target="_blank"
-                  className="mt-4 inline-block text-blue-500 hover:underline font-semibold"
-                >
-                  Ir a la oferta recomendada →
-                </a>
-              )}
-            </div>
-          ) : (
-            <p className="mt-6 text-yellow-600 font-medium">
-              No encontramos un resultado (Outcome) para este puntaje. El administrador debe definir
-              los rangos!
-            </p>
-          )}
-
-          <p className="text-xs mt-6 text-gray-400">Tu respuesta ha sido guardada.</p>
-          <p className="text-xs mt-1 text-gray-400">
-            {leadEmail
-              ? `Enviaremos el resultado a ${leadEmail}.`
-              : "Guardamos los datos de contacto que compartiste."}
-          </p>
-        </div>
-      ) : showEmailGate ? (
-        <EmailGate
-          onSubmit={handleLeadSubmit}
-          loading={savingLead}
-          fields={leadConfig.fields}
-          defaultValues={leadValues}
-          onBack={() => setShowEmailGate(false)}
-          errorMessage={leadError}
-          title={leadConfig.title}
-          subtitle={leadConfig.subtitle}
-          ctaLabel={leadConfig.ctaLabel}
-          disclaimer={leadConfig.disclaimer}
-        />
-      ) : (
-        <div className="space-y-6">
-          {/* Indicador de progreso */}
-          <div className="text-sm text-gray-600 mb-4 flex items-center justify-between gap-3">
-            <span>
-              Progreso: {progressValue} / {totalQuestions}
-            </span>
-            <progress
-              className="progress-bar mt-1 flex-1"
-              max={totalQuestions || 1}
-              value={progressValue}
-            />
-          </div>
-
-          {questions[currentStep] && (
-            <QuestionRenderer
-              key={questions[currentStep].id}
-              question={questions[currentStep]}
-              onAnswer={handleAnswer}
-              selectedOptionIds={answers[questions[currentStep].id]?.optionIds || []}
-              displayOrder={(questions[currentStep].order || currentStep) + 1}
-            />
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={goPrev}
-              disabled={currentStep === 0}
-              className="rounded-md border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition disabled:opacity-50"
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-50">
+      <div className="mx-auto max-w-4xl px-4 py-10">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-semibold ${
+                survey.isActive
+                  ? "bg-emerald-100/80 text-emerald-800"
+                  : "bg-amber-100/80 text-amber-800"
+              }`}
             >
-              Anterior
-            </button>
-            <div className="flex flex-1 justify-end gap-3">
-              <button
-                type="button"
-                onClick={goNext}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
-              >
-                {currentStep === totalQuestions - 1 ? "Continuar a email" : "Siguiente"}
-              </button>
+              <span className="h-2 w-2 rounded-full bg-current" aria-hidden />
+              {survey.isActive ? "Publicado" : "Borrador"}
+            </span>
+            {previewMode && (
+              <span className="inline-flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-[12px] font-semibold text-slate-200">
+                Vista previa
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-slate-400">
+            Paso {Math.min(currentStep + 1, totalQuestions || 1)} de {totalQuestions || 1}
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-3xl border border-slate-800/70 bg-slate-900/70 shadow-2xl backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/70 px-6 py-4">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                Formulario
+              </p>
+              <h1 className="text-2xl font-bold text-white">{survey.title}</h1>
+              <p className="text-sm text-slate-300 line-clamp-2">
+                {survey.description || "Responde el formulario para conocer tu resultado."}
+              </p>
+            </div>
+            <div className="w-full sm:w-64">
+              <div className="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <span>Progreso</span>
+                <span>{progressPercent}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
             </div>
           </div>
 
-          {leadError && <p className="text-sm font-semibold text-red-600">{leadError}</p>}
+          <div className="p-6 sm:p-8">
+            {isSubmitted ? (
+              <div className="rounded-2xl border border-emerald-400/30 bg-emerald-50/90 p-6 text-emerald-900 shadow-inner">
+                <h2 className="text-2xl font-bold">Tu resultado ha sido calculado</h2>
+                <p className="mt-4 text-slate-800">
+                  Puntaje total:{" "}
+                  <strong className="text-3xl font-extrabold text-emerald-700">
+                    {Object.values(answers).reduce((sum, a) => sum + (a.score || 0), 0)}
+                  </strong>{" "}
+                  puntos.
+                </p>
+
+                {finalOutcome ? (
+                  <div className="mt-6 rounded-xl border border-emerald-200 bg-white p-4 shadow-sm">
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">{finalOutcome.title}</h3>
+                    <p className="mt-1 text-sm text-slate-700">{finalOutcome.description}</p>
+                    {finalOutcome.redirectUrl && (
+                      <a
+                        href={finalOutcome.redirectUrl}
+                        target="_blank"
+                        className="mt-4 inline-block text-sm font-semibold text-emerald-700 hover:underline"
+                      >
+                        Ir a la oferta recomendada →
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-6 text-sm font-semibold text-amber-700">
+                    No encontramos un resultado para este puntaje. El administrador debe definir los rangos.
+                  </p>
+                )}
+
+                <p className="text-xs mt-6 text-slate-700">
+                  {leadEmail
+                    ? `Enviaremos el resultado a ${leadEmail}.`
+                    : "Guardamos los datos de contacto que compartiste."}
+                </p>
+              </div>
+            ) : showEmailGate ? (
+              <EmailGate
+                onSubmit={handleLeadSubmit}
+                loading={savingLead}
+                fields={leadConfig.fields}
+                defaultValues={leadValues}
+                onBack={() => setShowEmailGate(false)}
+                errorMessage={leadError}
+                title={leadConfig.title}
+                subtitle={leadConfig.subtitle}
+                ctaLabel={leadConfig.ctaLabel}
+                disclaimer={leadConfig.disclaimer}
+                allowSkipValidation={previewMode}
+              />
+            ) : (
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-md">
+                  <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <span>Pregunta {currentStep + 1}</span>
+                    <span>
+                      {progressValue} / {totalQuestions} respondidas
+                    </span>
+                  </div>
+
+                  {questions[currentStep] && (
+                    <QuestionRenderer
+                      key={questions[currentStep].id}
+                      question={questions[currentStep]}
+                      onAnswer={handleAnswer}
+                      selectedOptionIds={answers[questions[currentStep].id]?.optionIds || []}
+                      displayOrder={(questions[currentStep].order || currentStep) + 1}
+                    />
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    disabled={currentStep === 0}
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Anterior
+                  </button>
+                  <div className="flex flex-1 justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={goNext}
+                      className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                    >
+                      {currentStep === totalQuestions - 1 ? "Continuar a contacto" : "Siguiente"}
+                    </button>
+                  </div>
+                </div>
+
+                {leadError && (
+                  <p className="text-sm font-semibold text-amber-500">{leadError}</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
